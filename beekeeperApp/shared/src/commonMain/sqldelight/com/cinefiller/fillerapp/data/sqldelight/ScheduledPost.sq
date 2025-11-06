@@ -1,0 +1,106 @@
+-- Scheduled Posts
+-- Store scheduled social media posts
+
+CREATE TABLE scheduled_post (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    content_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    scheduled_time INTEGER NOT NULL,
+    publish_request_json TEXT NOT NULL, -- Full PublishRequest as JSON
+    status TEXT NOT NULL, -- 'SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'FAILED', 'CANCELLED'
+    published_at INTEGER,
+    publish_result_json TEXT, -- PublishResult as JSON
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX scheduled_post_project_id ON scheduled_post(project_id);
+CREATE INDEX scheduled_post_platform ON scheduled_post(platform);
+CREATE INDEX scheduled_post_status ON scheduled_post(status);
+CREATE INDEX scheduled_post_scheduled_time ON scheduled_post(scheduled_time);
+
+-- Insert or replace scheduled post
+insertOrReplace:
+INSERT OR REPLACE INTO scheduled_post(
+    id, project_id, platform, content_id, title, description,
+    scheduled_time, publish_request_json, status, published_at,
+    publish_result_json, error_message, retry_count,
+    created_at, updated_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Get all scheduled posts for a project
+selectByProjectId:
+SELECT * FROM scheduled_post
+WHERE project_id = ?
+ORDER BY scheduled_time ASC;
+
+-- Get scheduled posts by status
+selectByStatus:
+SELECT * FROM scheduled_post
+WHERE project_id = ? AND status = ?
+ORDER BY scheduled_time ASC;
+
+-- Get upcoming posts
+selectUpcoming:
+SELECT * FROM scheduled_post
+WHERE status = 'SCHEDULED' AND scheduled_time > ?
+ORDER BY scheduled_time ASC
+LIMIT ?;
+
+-- Get due posts (ready to publish)
+selectDue:
+SELECT * FROM scheduled_post
+WHERE status = 'SCHEDULED' AND scheduled_time <= ?
+ORDER BY scheduled_time ASC;
+
+-- Get post by ID
+selectById:
+SELECT * FROM scheduled_post
+WHERE id = ?;
+
+-- Update status
+updateStatus:
+UPDATE scheduled_post
+SET status = ?,
+    updated_at = ?
+WHERE id = ?;
+
+-- Update publish result
+updatePublishResult:
+UPDATE scheduled_post
+SET status = ?,
+    published_at = ?,
+    publish_result_json = ?,
+    updated_at = ?
+WHERE id = ?;
+
+-- Update error
+updateError:
+UPDATE scheduled_post
+SET status = 'FAILED',
+    error_message = ?,
+    retry_count = retry_count + 1,
+    updated_at = ?
+WHERE id = ?;
+
+-- Delete scheduled post
+deleteById:
+DELETE FROM scheduled_post
+WHERE id = ?;
+
+-- Delete by project
+deleteByProjectId:
+DELETE FROM scheduled_post
+WHERE project_id = ?;
+
+-- Delete old completed posts
+deleteOldCompleted:
+DELETE FROM scheduled_post
+WHERE status IN ('PUBLISHED', 'CANCELLED', 'FAILED')
+  AND updated_at < ?;

@@ -1,0 +1,23 @@
+// Configuration/Config.xcconfig
+// Xcode configuration file for CineFillerApp
+
+// Bundle identifier configuration
+BUNDLE_ID = com.cinefiller.fillerapp
+TEAM_ID =
+
+// Product name
+PRODUCT_NAME = Cinefiller
+APP_NAME = Cinefiller
+
+// Deployment target
+IPHONEOS_DEPLOYMENT_TARGET = 15.0
+
+// Swift version
+SWIFT_VERSION = 5.0
+
+// Framework search paths - will be set by embedAndSignAppleFrameworkForXcode task
+// The Gradle task copies the framework to xcode-frameworks and sets FRAMEWORK_SEARCH_PATHS
+FRAMEWORK_SEARCH_PATHS = $(inherited) $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
+
+// Other linker flags (already includes sqlite from project settings)
+OTHER_LDFLAGS = $(inherited) -framework shared -lsqlite3

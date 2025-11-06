@@ -1,0 +1,133 @@
+-- OLD ProjectFactory table (DEPRECATED - kept for backward compatibility)
+-- Single JSON blob approach - has 2MB CursorWindow limit issues
+-- DO NOT USE - migrate to project_factory_v2
+
+CREATE TABLE IF NOT EXISTS project_factory (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL,
+    factory_type TEXT NOT NULL, -- 'sample', 'template', 'user'
+
+    -- Denormalized fields for fast list queries
+    title TEXT,
+    description TEXT,
+    project_type TEXT, -- e.g., 'series', 'movie', 'short'
+
+    json_data TEXT NOT NULL,    -- DEPRECATED: Entire ProjectFactory in one blob
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- NEW ProjectFactory table (v2) - Split JSON approach
+-- Stores each factory component separately to avoid CursorWindow 2MB row limit
+-- Matches original 5-factory pattern: Project, Characters, Stories, Scripts, Storyboards
+-- Will migrate smoothly to Postgres JSONB columns
+
+CREATE TABLE project_factory_v2 (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL,
+    factory_type TEXT NOT NULL, -- 'sample', 'template', 'user'
+
+    -- Denormalized fields for fast list queries
+    title TEXT,
+    description TEXT,
+    project_type TEXT, -- e.g., 'series', 'movie', 'short'
+
+    -- Separate JSON fields for each factory component (keeps rows under 2MB)
+    project_json TEXT NOT NULL,      -- CreativeProject
+    characters_json TEXT,             -- List<CharacterProfile>
+    stories_json TEXT,                -- List<Story>
+    scripts_json TEXT,                -- List<Script>
+    storyboards_json TEXT,            -- List<Storyboard>
+    bible_json TEXT,                  -- ProjectBible
+    publishing_json TEXT,             -- PublishingProject
+    metadata_json TEXT,               -- ProjectFactoryMetadata
+
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Indexes for v2 table
+CREATE INDEX project_factory_v2_project_id ON project_factory_v2(project_id);
+CREATE INDEX project_factory_v2_type ON project_factory_v2(factory_type);
+CREATE INDEX project_factory_v2_title ON project_factory_v2(title);
+CREATE INDEX project_factory_v2_project_type ON project_factory_v2(project_type);
+
+-- ===== V2 TABLE QUERIES (ACTIVE) =====
+
+-- Insert or replace a project factory
+insertOrReplace:
+INSERT OR REPLACE INTO project_factory_v2(
+    id, project_id, factory_type, title, description, project_type,
+    project_json, characters_json, stories_json, scripts_json, storyboards_json,
+    bible_json, publishing_json, metadata_json,
+    created_at, updated_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Get all project factories
+selectAll:
+SELECT * FROM project_factory_v2
+ORDER BY created_at DESC;
+
+-- Get factory by ID
+selectById:
+SELECT * FROM project_factory_v2
+WHERE id = ?;
+
+-- Get factory by project ID
+selectByProjectId:
+SELECT * FROM project_factory_v2
+WHERE project_id = ?;
+
+-- Get factories by type
+selectByType:
+SELECT * FROM project_factory_v2
+WHERE factory_type = ?
+ORDER BY created_at DESC;
+
+-- Delete a factory
+deleteById:
+DELETE FROM project_factory_v2
+WHERE id = ?;
+
+-- Delete all factories
+deleteAll:
+DELETE FROM project_factory_v2;
+
+-- Count all factories
+countAll:
+SELECT COUNT(*) FROM project_factory_v2;
+
+-- Count by type
+countByType:
+SELECT COUNT(*) FROM project_factory_v2
+WHERE factory_type = ?;
+
+-- Search by title (fast search using denormalized field)
+searchByTitle:
+SELECT * FROM project_factory_v2
+WHERE title LIKE '%' || ? || '%'
+ORDER BY created_at DESC;
+
+-- Get factories by project type
+selectByProjectType:
+SELECT * FROM project_factory_v2
+WHERE project_type = ?
+ORDER BY created_at DESC;
+
+-- Get all with basic info (for list views)
+selectAllWithBasicInfo:
+SELECT id, project_id, factory_type, title, description, project_type, created_at, updated_at
+FROM project_factory_v2
+ORDER BY created_at DESC;
+
+-- ===== MIGRATION HELPERS =====
+
+-- Check if old data exists
+hasOldData:
+SELECT COUNT(*) > 0 AS has_data FROM project_factory;
+
+-- Get all old factories (for migration)
+selectAllOld:
+SELECT * FROM project_factory
+ORDER BY created_at DESC;

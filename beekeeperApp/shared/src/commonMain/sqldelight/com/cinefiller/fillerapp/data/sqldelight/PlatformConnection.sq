@@ -1,0 +1,97 @@
+-- Platform Connections
+-- Store OAuth tokens and connection info for social platforms
+-- NOTE: Tokens should be encrypted before storage
+
+CREATE TABLE platform_connection (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL,
+    platform TEXT NOT NULL, -- 'YOUTUBE', 'TIKTOK', 'INSTAGRAM', etc.
+    account_name TEXT,
+    account_id TEXT,
+    access_token TEXT NOT NULL, -- MUST BE ENCRYPTED
+    refresh_token TEXT, -- MUST BE ENCRYPTED
+    token_type TEXT,
+    expires_at INTEGER,
+    scopes TEXT, -- Comma-separated OAuth scopes
+    connection_status TEXT NOT NULL, -- 'ACTIVE', 'EXPIRED', 'REVOKED', 'ERROR'
+    last_sync_at INTEGER,
+    connection_info_json TEXT, -- Additional platform-specific data
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX platform_connection_project_id ON platform_connection(project_id);
+CREATE INDEX platform_connection_platform ON platform_connection(platform);
+CREATE INDEX platform_connection_status ON platform_connection(connection_status);
+CREATE UNIQUE INDEX platform_connection_unique ON platform_connection(project_id, platform, account_id);
+
+-- Insert or replace connection
+insertOrReplace:
+INSERT OR REPLACE INTO platform_connection(
+    id, project_id, platform, account_name, account_id,
+    access_token, refresh_token, token_type, expires_at, scopes,
+    connection_status, last_sync_at, connection_info_json,
+    created_at, updated_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Get all connections for a project
+selectByProjectId:
+SELECT * FROM platform_connection
+WHERE project_id = ?
+ORDER BY created_at DESC;
+
+-- Get connection by platform
+selectByProjectAndPlatform:
+SELECT * FROM platform_connection
+WHERE project_id = ? AND platform = ?;
+
+-- Get all active connections
+selectActive:
+SELECT * FROM platform_connection
+WHERE connection_status = 'ACTIVE'
+ORDER BY created_at DESC;
+
+-- Get connection by ID
+selectById:
+SELECT * FROM platform_connection
+WHERE id = ?;
+
+-- Update token
+updateToken:
+UPDATE platform_connection
+SET access_token = ?,
+    refresh_token = ?,
+    expires_at = ?,
+    connection_status = ?,
+    updated_at = ?
+WHERE id = ?;
+
+-- Update status
+updateStatus:
+UPDATE platform_connection
+SET connection_status = ?,
+    updated_at = ?
+WHERE id = ?;
+
+-- Update last sync
+updateLastSync:
+UPDATE platform_connection
+SET last_sync_at = ?,
+    updated_at = ?
+WHERE id = ?;
+
+-- Delete connection
+deleteById:
+DELETE FROM platform_connection
+WHERE id = ?;
+
+-- Delete by project
+deleteByProjectId:
+DELETE FROM platform_connection
+WHERE project_id = ?;
+
+-- Delete by platform
+deleteByProjectAndPlatform:
+DELETE FROM platform_connection
+WHERE project_id = ? AND platform = ?;

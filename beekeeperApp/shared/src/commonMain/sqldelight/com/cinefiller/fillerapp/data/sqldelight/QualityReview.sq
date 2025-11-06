@@ -1,0 +1,66 @@
+-- Quality Review storage for content reviews
+-- User-generated reviews and quality metrics
+
+CREATE TABLE quality_review (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL,
+    content_id TEXT NOT NULL,
+    content_type TEXT NOT NULL,
+    reviewer TEXT NOT NULL,
+    score REAL,
+    status TEXT NOT NULL,
+    feedback TEXT,
+    metrics_json TEXT,
+    created_at INTEGER NOT NULL,
+    completed_at INTEGER
+);
+
+CREATE INDEX quality_review_project_id ON quality_review(project_id);
+CREATE INDEX quality_review_content_id ON quality_review(content_id);
+CREATE INDEX quality_review_status ON quality_review(status);
+
+-- Insert or replace a review
+insertOrReplace:
+INSERT OR REPLACE INTO quality_review(
+    id, project_id, content_id, content_type, reviewer,
+    score, status, feedback, metrics_json, created_at, completed_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Get all reviews for a project
+selectByProjectId:
+SELECT * FROM quality_review
+WHERE project_id = ?
+ORDER BY created_at DESC;
+
+-- Get reviews for specific content
+selectByContentId:
+SELECT * FROM quality_review
+WHERE content_id = ?
+ORDER BY created_at DESC;
+
+-- Get review by ID
+selectById:
+SELECT * FROM quality_review
+WHERE id = ?;
+
+-- Get reviews by status
+selectByStatus:
+SELECT * FROM quality_review
+WHERE project_id = ? AND status = ?
+ORDER BY created_at DESC;
+
+-- Delete review
+deleteById:
+DELETE FROM quality_review
+WHERE id = ?;
+
+-- Delete all reviews for a project
+deleteByProjectId:
+DELETE FROM quality_review
+WHERE project_id = ?;
+
+-- Count reviews for a project
+countByProjectId:
+SELECT COUNT(*) FROM quality_review
+WHERE project_id = ?;

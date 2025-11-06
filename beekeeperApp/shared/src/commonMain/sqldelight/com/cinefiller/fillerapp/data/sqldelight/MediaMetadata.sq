@@ -1,0 +1,131 @@
+-- Media Metadata storage
+-- Tracks uploaded media files and their associations
+-- Links media files to projects, characters, stories, etc.
+
+CREATE TABLE media_metadata (
+    id TEXT PRIMARY KEY NOT NULL,
+    media_id TEXT NOT NULL UNIQUE,
+    filename TEXT NOT NULL,
+    original_filename TEXT NOT NULL,
+    storage_path TEXT NOT NULL,  -- Path in Bunny.net storage
+    cdn_url TEXT NOT NULL,        -- CDN URL for access
+    storage_url TEXT NOT NULL,    -- Storage API URL
+
+    -- Media properties
+    media_type TEXT NOT NULL,     -- image, video, audio, etc.
+    mime_type TEXT,
+    size INTEGER NOT NULL,
+    width INTEGER,
+    height INTEGER,
+    duration REAL,                -- For video/audio
+
+    -- Associations
+    project_id TEXT,
+    character_id TEXT,
+    story_id TEXT,
+    scene_id TEXT,
+    frame_id TEXT,
+    user_id TEXT,
+
+    -- Categorization
+    folder TEXT,                  -- avatars, frames, project-images, etc.
+    tags TEXT,                    -- Comma-separated tags
+    file_hash TEXT,               -- SHA256 for deduplication
+
+    -- Metadata
+    metadata_json TEXT,           -- Additional custom metadata as JSON
+
+    -- Timestamps
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER            -- Soft delete
+);
+
+-- Indexes for common queries
+CREATE INDEX idx_media_id ON media_metadata(media_id);
+CREATE INDEX idx_media_type ON media_metadata(media_type);
+CREATE INDEX idx_media_project ON media_metadata(project_id, media_type);
+CREATE INDEX idx_media_character ON media_metadata(character_id);
+CREATE INDEX idx_media_story ON media_metadata(story_id);
+CREATE INDEX idx_media_scene ON media_metadata(scene_id);
+CREATE INDEX idx_media_frame ON media_metadata(frame_id);
+CREATE INDEX idx_media_user ON media_metadata(user_id);
+CREATE INDEX idx_media_folder ON media_metadata(folder);
+CREATE INDEX idx_media_file_hash ON media_metadata(file_hash);
+
+-- Insert or replace media metadata
+insertOrReplace:
+INSERT OR REPLACE INTO media_metadata(
+    id, media_id, filename, original_filename, storage_path, cdn_url, storage_url,
+    media_type, mime_type, size, width, height, duration,
+    project_id, character_id, story_id, scene_id, frame_id, user_id,
+    folder, tags, file_hash, metadata_json,
+    created_at, updated_at, deleted_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Get all media
+selectAll:
+SELECT * FROM media_metadata
+WHERE deleted_at IS NULL
+ORDER BY created_at DESC;
+
+-- Get media by ID
+selectById:
+SELECT * FROM media_metadata
+WHERE id = ?;
+
+-- Get media by project
+selectByProject:
+SELECT * FROM media_metadata
+WHERE project_id = ? AND deleted_at IS NULL
+ORDER BY created_at DESC;
+
+-- Get media by character
+selectByCharacter:
+SELECT * FROM media_metadata
+WHERE character_id = ? AND deleted_at IS NULL
+ORDER BY created_at DESC;
+
+-- Get media by story
+selectByStory:
+SELECT * FROM media_metadata
+WHERE story_id = ? AND deleted_at IS NULL
+ORDER BY created_at DESC;
+
+-- Get media by folder
+selectByFolder:
+SELECT * FROM media_metadata
+WHERE folder = ? AND deleted_at IS NULL
+ORDER BY created_at DESC;
+
+-- Get media by type and project
+selectByTypeAndProject:
+SELECT * FROM media_metadata
+WHERE media_type = ? AND project_id = ? AND deleted_at IS NULL
+ORDER BY created_at DESC;
+
+-- Soft delete
+softDelete:
+UPDATE media_metadata
+SET deleted_at = ?
+WHERE id = ?;
+
+-- Hard delete
+deleteById:
+DELETE FROM media_metadata
+WHERE id = ?;
+
+-- Delete all
+deleteAll:
+DELETE FROM media_metadata;
+
+-- Count all
+countAll:
+SELECT COUNT(*) FROM media_metadata
+WHERE deleted_at IS NULL;
+
+-- Count by project
+countByProject:
+SELECT COUNT(*) FROM media_metadata
+WHERE project_id = ? AND deleted_at IS NULL;

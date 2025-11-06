@@ -1,0 +1,45 @@
+-- Feed Media Items
+-- Images and videos attached to feed posts
+
+CREATE TABLE feed_media (
+    id TEXT PRIMARY KEY NOT NULL,
+    post_id TEXT NOT NULL,
+    url TEXT NOT NULL,
+    type TEXT NOT NULL, -- 'IMAGE', 'VIDEO', 'AVATAR', 'SCENE'
+    thumbnail_url TEXT,
+    aspect_ratio REAL NOT NULL DEFAULT 1.0,
+    duration INTEGER, -- in seconds, for videos
+    display_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX feed_media_post_id ON feed_media(post_id);
+
+-- Insert media item
+insert:
+INSERT INTO feed_media(
+    id, post_id, url, type, thumbnail_url, aspect_ratio, duration, display_order
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Insert or replace media item
+insertOrReplace:
+INSERT OR REPLACE INTO feed_media(
+    id, post_id, url, type, thumbnail_url, aspect_ratio, duration, display_order
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Get media for post
+selectByPostId:
+SELECT * FROM feed_media
+WHERE post_id = ?
+ORDER BY display_order ASC;
+
+-- Delete media item
+deleteById:
+DELETE FROM feed_media
+WHERE id = ?;
+
+-- Delete all media for post
+deleteByPostId:
+DELETE FROM feed_media
+WHERE post_id = ?;

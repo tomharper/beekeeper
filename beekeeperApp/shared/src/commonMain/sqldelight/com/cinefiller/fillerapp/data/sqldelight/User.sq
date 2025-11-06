@@ -1,0 +1,69 @@
+-- User profile and preferences
+-- Stores user settings and recent project access for MRU ordering
+
+CREATE TABLE users (
+    id TEXT PRIMARY KEY NOT NULL,
+    username TEXT UNIQUE,
+    email TEXT UNIQUE,
+    display_name TEXT,
+    avatar_url TEXT,
+
+    -- User preferences and state
+    preferences_json TEXT,        -- User preferences as JSON
+    recent_projects_json TEXT,    -- Array of {project_id, accessed_at} for MRU ordering
+
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    last_login_at INTEGER
+);
+
+-- Indexes
+CREATE INDEX idx_user_username ON users(username);
+CREATE INDEX idx_user_email ON users(email);
+
+-- Insert or replace user
+insertOrReplace:
+INSERT OR REPLACE INTO users(
+    id, username, email, display_name, avatar_url,
+    preferences_json, recent_projects_json,
+    created_at, updated_at, last_login_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Get user by ID
+selectById:
+SELECT * FROM users
+WHERE id = ?;
+
+-- Get user by username
+selectByUsername:
+SELECT * FROM users
+WHERE username = ?;
+
+-- Get user by email
+selectByEmail:
+SELECT * FROM users
+WHERE email = ?;
+
+-- Update recent projects
+updateRecentProjects:
+UPDATE users
+SET recent_projects_json = ?, updated_at = ?
+WHERE id = ?;
+
+-- Update preferences
+updatePreferences:
+UPDATE users
+SET preferences_json = ?, updated_at = ?
+WHERE id = ?;
+
+-- Update last login
+updateLastLogin:
+UPDATE users
+SET last_login_at = ?, updated_at = ?
+WHERE id = ?;
+
+-- Delete user
+deleteById:
+DELETE FROM users
+WHERE id = ?;

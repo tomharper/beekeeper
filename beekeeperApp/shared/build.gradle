@@ -1,0 +1,242 @@
+// File: shared/build.gradle
+plugins {
+    id 'org.jetbrains.kotlin.multiplatform'
+    id 'com.android.library'
+    id 'org.jetbrains.compose'
+    id 'org.jetbrains.kotlin.plugin.compose'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '2.1.0'
+    id 'io.objectbox'
+    id 'org.jetbrains.kotlin.kapt'
+    id 'app.cash.sqldelight'
+}
+
+kapt {
+    generateStubs = true
+
+    arguments {
+        arg("objectbox.debug", true)
+    }
+}
+
+kotlin {
+    jvmToolchain(21)
+
+    androidTarget {
+        compilations.all {
+            kotlinOptions.jvmTarget = '11'
+        }
+    }
+
+    jvm("desktop") {
+        compilations.all {
+            kotlinOptions.jvmTarget = '11'
+        }
+    }
+
+    // iOS targets
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
+
+    targets.withType(org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget) {
+        binaries.framework {
+            baseName = "shared"
+            isStatic = true
+        }
+    }
+
+    // WASM target - DISABLED
+    // wasmJs {
+    //     browser {
+    //         commonWebpackConfig {
+    //             export = true
+    //         }
+    //     }
+    //     binaries.executable()
+    // }
+
+    sourceSets {
+        commonMain {
+            dependencies {
+                implementation compose.runtime
+                implementation compose.foundation
+                implementation compose.material3
+                implementation compose.ui
+                implementation compose.components.resources
+                implementation compose.components.uiToolingPreview
+                implementation compose.materialIconsExtended
+
+                // Coroutines
+                implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1"
+
+                // DateTime
+                implementation "org.jetbrains.kotlinx:kotlinx-datetime:0.6.1"
+
+                // Serialization
+                implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3"
+
+                // Koin for Multiplatform
+                implementation "io.insert-koin:koin-core:$koin_version"
+                implementation "io.insert-koin:koin-compose:$koin_version"
+
+                // Navigation
+                implementation "org.jetbrains.androidx.navigation:navigation-compose:2.7.0-alpha07"
+
+                // Ktor HTTP Client - multiplatform networking
+                implementation "io.ktor:ktor-client-core:$ktor_version"
+                implementation "io.ktor:ktor-client-content-negotiation:$ktor_version"
+                implementation "io.ktor:ktor-serialization-kotlinx-json:$ktor_version"
+                implementation "io.ktor:ktor-client-logging:$ktor_version"
+
+                // Image loading - Kamel multiplatform
+                implementation "media.kamel:kamel-image:0.9.5"
+            }
+        }
+
+        androidMain {
+            dependencies {
+                implementation "androidx.activity:activity-compose:1.8.2"
+                implementation "androidx.core:core-ktx:1.12.0"
+                implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0"
+
+                // Security - for encrypted token storage
+                implementation "androidx.security:security-crypto:1.1.0-alpha06"
+
+                // Networking
+                // Ktor Client
+                implementation "io.ktor:ktor-client-core:$ktor_version"
+                implementation "io.ktor:ktor-client-okhttp:$ktor_version"  // ADD THIS LINE - Required for Kamel on Android
+                implementation "io.ktor:ktor-client-content-negotiation:$ktor_version"
+                implementation "io.ktor:ktor-serialization-kotlinx-json:$ktor_version"
+                implementation "io.ktor:ktor-client-logging:$ktor_version"
+                implementation "io.ktor:ktor-client-auth:$ktor_version"
+
+                // ObjectBox (will be replaced by SQLDelight incrementally)
+                implementation "io.objectbox:objectbox-kotlin:$objectbox_version"
+                implementation "io.objectbox:objectbox-android:$objectbox_version"
+
+                // SQLDelight
+                implementation "app.cash.sqldelight:android-driver:$sqldelight_version"
+
+                // Logging
+                implementation "io.github.aakira:napier:2.6.1"
+
+                // Serialization
+                implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0"
+
+                // Additional Android dependencies
+                implementation "com.google.accompanist:accompanist-systemuicontroller:0.32.0"
+                implementation "androidx.media3:media3-exoplayer:1.2.0"
+                implementation "androidx.media3:media3-ui:1.2.0"
+                implementation "androidx.media3:media3-common:1.2.0"
+                implementation "androidx.media3:media3-exoplayer-hls:1.2.0"
+                implementation "androidx.media3:media3-exoplayer-dash:1.2.0"
+
+            }
+        }
+
+        desktopMain {
+            dependencies {
+                implementation compose.desktop.currentOs
+
+                // Navigation
+                implementation "org.jetbrains.androidx.navigation:navigation-compose:2.7.0-alpha07"
+
+                // Networking
+                implementation "io.ktor:ktor-client-cio:2.3.7"
+                implementation "io.ktor:ktor-client-core:2.3.7"
+                implementation "io.ktor:ktor-client-content-negotiation:2.3.7"
+                implementation "io.ktor:ktor-serialization-kotlinx-json:2.3.7"
+
+                // Serialization
+                implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0"
+
+                // ObjectBox disabled for desktop - use SQLDelight only
+                // implementation "io.objectbox:objectbox-java:$objectbox_version"
+
+                // SQLDelight
+                implementation "app.cash.sqldelight:sqlite-driver:$sqldelight_version"
+            }
+        }
+
+        iosMain {
+            dependsOn commonMain
+            dependencies {
+                // Networking
+                implementation "io.ktor:ktor-client-darwin:$ktor_version"
+                implementation "io.ktor:ktor-client-core:$ktor_version"
+                implementation "io.ktor:ktor-client-content-negotiation:$ktor_version"
+                implementation "io.ktor:ktor-serialization-kotlinx-json:$ktor_version"
+
+                // Serialization
+                implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0"
+
+                // ObjectBox not available on iOS - use SQLDelight only
+
+                // SQLDelight
+                implementation "app.cash.sqldelight:native-driver:$sqldelight_version"
+            }
+        }
+
+        iosX64Main {
+            dependsOn iosMain
+        }
+
+        iosArm64Main {
+            dependsOn iosMain
+        }
+
+        iosSimulatorArm64Main {
+            dependsOn iosMain
+        }
+    }
+}
+
+// SQLDelight configuration
+sqldelight {
+    databases {
+        create("BeekeeperDatabase") {
+            packageName.set("com.beekeeper.app.data.sqldelight")
+            // Schema will be in shared/src/commonMain/sqldelight/
+        }
+    }
+}
+
+dependencies {
+    // kapt only processes Android source set
+    kapt 'io.objectbox:objectbox-processor:4.3.0'
+}
+
+android {
+    namespace = "com.beekeeper.app"
+    compileSdk = 34
+
+    defaultConfig {
+        minSdk = 24
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+}
+
+// Disable kapt for desktop target
+afterEvaluate {
+    tasks.matching { it.name.startsWith("kapt") && it.name.contains("Desktop") }.configureEach {
+        enabled = false
+    }
+}
+
+// Task to export all factories to JSON
+tasks.register('runExportFactories', JavaExec) {
+    group = "beekeeper"
+    description = "Export all project factories to JSON files"
+    dependsOn 'desktopJar'
+
+    classpath = files(
+        kotlin.targets.desktop.compilations.main.output.allOutputs,
+        kotlin.targets.desktop.compilations.main.runtimeDependencyFiles
+    )
+    mainClass = "ExportFactoriesKt"
+}

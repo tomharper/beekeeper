@@ -1,0 +1,98 @@
+-- Feed Posts
+-- Social media feed posts with content, stats, and interactions
+
+CREATE TABLE feed_post (
+    id TEXT PRIMARY KEY NOT NULL,
+    author_id TEXT NOT NULL,
+    author_username TEXT NOT NULL,
+    author_display_name TEXT NOT NULL,
+    author_avatar_url TEXT,
+    author_is_verified INTEGER NOT NULL DEFAULT 0,
+    author_is_following INTEGER NOT NULL DEFAULT 0,
+    content_text TEXT,
+    content_project_id TEXT,
+    content_project_name TEXT,
+    content_project_type TEXT,
+    content_ai_generated INTEGER NOT NULL DEFAULT 0,
+    stats_likes INTEGER NOT NULL DEFAULT 0,
+    stats_comments INTEGER NOT NULL DEFAULT 0,
+    stats_shares INTEGER NOT NULL DEFAULT 0,
+    stats_views INTEGER NOT NULL DEFAULT 0,
+    timestamp INTEGER NOT NULL,
+    is_sponsored INTEGER NOT NULL DEFAULT 0,
+    has_been_liked INTEGER NOT NULL DEFAULT 0,
+    has_been_bookmarked INTEGER NOT NULL DEFAULT 0,
+    feed_type TEXT NOT NULL, -- 'FOR_YOU', 'FOLLOWING', 'TRENDING'
+    created_at INTEGER NOT NULL
+);
+
+CREATE INDEX feed_post_author_id ON feed_post(author_id);
+CREATE INDEX feed_post_timestamp ON feed_post(timestamp DESC);
+CREATE INDEX feed_post_feed_type ON feed_post(feed_type);
+
+-- Insert or replace post
+insertOrReplace:
+INSERT OR REPLACE INTO feed_post(
+    id, author_id, author_username, author_display_name, author_avatar_url,
+    author_is_verified, author_is_following, content_text, content_project_id,
+    content_project_name, content_project_type, content_ai_generated,
+    stats_likes, stats_comments, stats_shares, stats_views, timestamp,
+    is_sponsored, has_been_liked, has_been_bookmarked, feed_type, created_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Get posts by feed type
+selectByFeedType:
+SELECT * FROM feed_post
+WHERE feed_type = ?
+ORDER BY timestamp DESC
+LIMIT ?;
+
+-- Get posts by author
+selectByAuthor:
+SELECT * FROM feed_post
+WHERE author_id = ?
+ORDER BY timestamp DESC
+LIMIT ?;
+
+-- Get post by ID
+selectById:
+SELECT * FROM feed_post
+WHERE id = ?;
+
+-- Update post stats
+updateStats:
+UPDATE feed_post
+SET stats_likes = ?,
+    stats_comments = ?,
+    stats_shares = ?,
+    stats_views = ?
+WHERE id = ?;
+
+-- Update user interaction
+updateInteraction:
+UPDATE feed_post
+SET has_been_liked = ?,
+    has_been_bookmarked = ?
+WHERE id = ?;
+
+-- Update author following status
+updateAuthorFollowing:
+UPDATE feed_post
+SET author_is_following = ?
+WHERE author_id = ?;
+
+-- Delete post
+deleteById:
+DELETE FROM feed_post
+WHERE id = ?;
+
+-- Delete old posts (cleanup)
+deleteOldPosts:
+DELETE FROM feed_post
+WHERE timestamp < ?;
+
+-- Count posts by feed type
+countByFeedType:
+SELECT COUNT(*) FROM feed_post
+WHERE feed_type = ?;

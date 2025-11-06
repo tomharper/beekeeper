@@ -1,0 +1,54 @@
+-- User Interactions
+-- Track likes, bookmarks, and follows
+
+CREATE TABLE user_interaction (
+    id TEXT PRIMARY KEY NOT NULL,
+    user_id TEXT NOT NULL,
+    target_id TEXT NOT NULL, -- post_id or author_id
+    interaction_type TEXT NOT NULL, -- 'LIKE', 'BOOKMARK', 'FOLLOW'
+    created_at INTEGER NOT NULL
+);
+
+CREATE INDEX user_interaction_user_id ON user_interaction(user_id);
+CREATE INDEX user_interaction_target_id ON user_interaction(target_id);
+CREATE UNIQUE INDEX user_interaction_unique ON user_interaction(user_id, target_id, interaction_type);
+
+-- Insert or ignore interaction
+insertOrIgnore:
+INSERT OR IGNORE INTO user_interaction(
+    id, user_id, target_id, interaction_type, created_at
+)
+VALUES (?, ?, ?, ?, ?);
+
+-- Delete interaction
+delete:
+DELETE FROM user_interaction
+WHERE user_id = ? AND target_id = ? AND interaction_type = ?;
+
+-- Check if interaction exists
+exists:
+SELECT COUNT(*) > 0 FROM user_interaction
+WHERE user_id = ? AND target_id = ? AND interaction_type = ?;
+
+-- Get all interactions by user
+selectByUser:
+SELECT * FROM user_interaction
+WHERE user_id = ?
+ORDER BY created_at DESC;
+
+-- Get all followers of a user
+selectFollowers:
+SELECT * FROM user_interaction
+WHERE target_id = ? AND interaction_type = 'FOLLOW'
+ORDER BY created_at DESC;
+
+-- Get all users followed by user
+selectFollowing:
+SELECT * FROM user_interaction
+WHERE user_id = ? AND interaction_type = 'FOLLOW'
+ORDER BY created_at DESC;
+
+-- Count interactions
+countByType:
+SELECT COUNT(*) FROM user_interaction
+WHERE target_id = ? AND interaction_type = ?;

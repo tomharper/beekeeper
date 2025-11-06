@@ -1,0 +1,40 @@
+// File: beekeeperApp/build.gradle
+buildscript {
+    ext {
+        ext.kotlin_version = '2.1.0'
+        ext.compose_multiplatform_version = '1.8.1'
+        ext.agp_version = '8.7.3'
+        ext.koin_version = '4.0.1'
+        ext.ktor_version = '3.0.2'
+        ext.objectbox_version = '4.3.0'
+        ext.ksp_version = '2.1.0-1.0.29' // KSP version matching your Kotlin 2.1.0
+        ext.sqldelight_version = '2.0.2' // SQLDelight for KMP
+    }
+
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url 'https://jitpack.io' }
+        maven { url 'https://maven.tensorflow.org/release' }
+        //maven { url "http://objectbox.net/beta-repo/" }
+    }
+
+    dependencies {
+        classpath "com.android.tools.build:gradle:$agp_version"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "org.jetbrains.kotlin:compose-compiler-gradle-plugin:$kotlin_version"
+        classpath "org.jetbrains.compose:compose-gradle-plugin:$compose_multiplatform_version"
+        classpath "io.objectbox:objectbox-gradle-plugin:$objectbox_version"
+        classpath "com.google.devtools.ksp:symbol-processing-gradle-plugin:$ksp_version"
+        classpath "app.cash.sqldelight:gradle-plugin:$sqldelight_version"
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+

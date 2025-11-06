@@ -1,0 +1,1284 @@
+// File: shared/src/commonMain/kotlin/com/cinefiller/fillerapp/presentation/screens/DistributionDashboardScreen.kt
+
+package com.cinefiller.fillerapp.presentation.screens
+
+import androidx.compose.animation.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import com.cinefiller.fillerapp.domain.model.*
+import com.cinefiller.fillerapp.domain.repository.DistributionRepository
+import com.cinefiller.fillerapp.domain.repository.DistributionRepositoryImpl
+import com.cinefiller.fillerapp.domain.repository.ProjectRepository
+import com.cinefiller.fillerapp.domain.repository.ProjectRepositoryImpl
+import com.cinefiller.fillerapp.presentation.components.SecondaryTopBar
+import com.cinefiller.fillerapp.presentation.theme.rememberAppTheme
+import com.cinefiller.fillerapp.presentation.viewmodels.DistributionDashboardViewModel
+import kotlinx.coroutines.launch
+import kotlin.math.*
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DistributionDashboardScreen(
+    projectId: String,
+    navController: NavHostController,
+    projectRepository: ProjectRepository = ProjectRepositoryImpl(),
+    distributionRepository: DistributionRepository = DistributionRepositoryImpl()
+) {
+    val theme = rememberAppTheme()
+    val viewModel = remember {
+        DistributionDashboardViewModel(
+            projectId = projectId,
+            projectRepository = projectRepository,
+            distributionRepository = distributionRepository
+        )
+    }
+
+    val uiState by viewModel.uiState.collectAsState()
+    val analytics = uiState.distributionAnalytics
+    val selectedTitle = uiState.selectedTitle
+    val sortOrder = uiState.sortOrder
+
+    var showTitleDetails by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(0) }
+    var filterChannel by remember { mutableStateOf<SocialPlatform?>(null) }
+    var filterContentType by remember { mutableStateOf<ContentFormat?>(null) }
+    var showExportDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(projectId) {
+        viewModel.loadDistributionData()
+    }
+
+    Scaffold(
+        topBar = {
+            SecondaryTopBar(
+                title = "Distribution Analytics",
+                onNavigateBack = { navController.navigateUp() },
+                actions = {
+                    IconButton(onClick = { viewModel.loadDistributionData() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                    IconButton(onClick = { showExportDialog = true }) {
+                        Icon(Icons.Default.Download, contentDescription = "Export")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else if (analytics != null) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(theme.colors.background),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                // Key Metrics Overview
+                item {
+                    KeyMetricsSection(analytics, theme)
+                }
+
+                // Tab Navigation
+                item {
+                    TabRow(
+                        selectedTabIndex = selectedTab,
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                    ) {
+                        Tab(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            text = { Text("Channels") }
+                        )
+                        Tab(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            text = { Text("Geography") }
+                        )
+                        Tab(
+                            selected = selectedTab == 2,
+                            onClick = { selectedTab = 2 },
+                            text = { Text("Content Type") }
+                        )
+                        Tab(
+                            selected = selectedTab == 3,
+                            onClick = { selectedTab = 3 },
+                            text = { Text("Duration") }
+                        )
+                    }
+                }
+
+                // Tab Content
+                item {
+                    when (selectedTab) {
+                        0 -> ChannelRevenueSection(analytics, theme)
+                        1 -> GeographyRevenueSection(analytics, theme)
+                        2 -> ContentTypeRevenueSection(analytics, theme)
+                        3 -> DurationRevenueSection(analytics, theme)
+                    }
+                }
+
+                // Title Revenue Table with Sorting
+                item {
+                    TitleRevenueTableSection(
+                        titles = analytics.titleRevenues,
+                        sortOrder = sortOrder,
+                        onSortChange = { viewModel.setSortOrder(it) },
+                        onTitleClick = { title ->
+                            viewModel.selectTitle(title)
+                            showTitleDetails = true
+                        },
+                        filterChannel = filterChannel,
+                        filterContentType = filterContentType,
+                        theme = theme
+                    )
+                }
+
+                // Optimization Recommendations
+                item {
+                    OptimizationRecommendationsSection(
+                        suggestions = analytics.optimizationSuggestions,
+                        theme = theme
+                    )
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No distribution data available")
+            }
+        }
+    }
+
+    // Title Details Bottom Sheet
+    if (showTitleDetails && selectedTitle != null) {
+        TitleDetailsBottomSheet(
+            title = selectedTitle,
+            onDismiss = {
+                showTitleDetails = false
+                viewModel.selectTitle(null)
+            },
+            theme = theme
+        )
+    }
+
+    // Export Dialog
+    if (showExportDialog) {
+        ExportAnalyticsDialog(
+            onExport = { format ->
+                viewModel.exportAnalytics(format)
+                showExportDialog = false
+            },
+            onDismiss = { showExportDialog = false }
+        )
+    }
+}
+
+@Composable
+fun KeyMetricsSection(analytics: DistributionAnalytics, theme: Any) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        MetricCard(
+            modifier = Modifier.weight(1f),
+            title = "Total Revenue",
+            value = "$${String.format("%.0f", analytics.totalRevenue)}",
+            change = "+12.5%",
+            icon = Icons.Default.AttachMoney,
+            iconColor = Color(0xFF4CAF50)
+        )
+        MetricCard(
+            modifier = Modifier.weight(1f),
+            title = "Total Views",
+            value = "${analytics.totalViews / 1000}K",
+            change = "+8.3%",
+            icon = Icons.Default.Visibility,
+            iconColor = Color(0xFF2196F3)
+        )
+        MetricCard(
+            modifier = Modifier.weight(1f),
+            title = "Avg Engagement",
+            value = "${String.format("%.1f", analytics.averageEngagement)}%",
+            change = "+2.1%",
+            icon = Icons.Default.TrendingUp,
+            iconColor = Color(0xFFFF9800)
+        )
+    }
+}
+
+@Composable
+fun MetricCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    value: String,
+    change: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconColor: Color
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = change,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (change.startsWith("+")) Color(0xFF4CAF50) else Color(0xFFFF5252)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun ChannelRevenueSection(analytics: DistributionAnalytics, theme: Any) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Revenue by Distribution Channel",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Pie Chart Visualization
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                SimplePieChart(
+                    data = analytics.revenueByChannel.map { (platform, revenue) ->
+                        PieChartData(
+                            label = platform.name,
+                            value = revenue,
+                            color = getPlatformColor(platform)
+                        )
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Channel Breakdown List
+            analytics.revenueByChannel.forEach { (platform, revenue) ->
+                ChannelRevenueItem(
+                    platform = platform,
+                    revenue = revenue,
+                    percentage = (revenue / analytics.totalRevenue * 100).toFloat()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun ChannelRevenueItem(
+    platform: SocialPlatform,
+    revenue: Float,
+    percentage: Float
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(getPlatformColor(platform))
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(platform.name)
+        }
+        Text(
+            "$${String.format("%.0f", revenue)}",
+            fontWeight = FontWeight.Medium
+        )
+        Text(
+            "${String.format("%.1f", percentage)}%",
+            modifier = Modifier.width(50.dp),
+            textAlign = TextAlign.End,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun GeographyRevenueSection(analytics: DistributionAnalytics, theme: Any) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Revenue by Geography",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val sortedGeos = analytics.revenueByGeo.entries
+                .sortedByDescending { it.value }
+                .take(8)
+
+            sortedGeos.forEach { (country, revenue) ->
+                GeographyRevenueItem(
+                    country = country,
+                    revenue = revenue,
+                    percentage = (revenue / analytics.totalRevenue * 100).toFloat(),
+                    maxRevenue = sortedGeos.first().value
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun GeographyRevenueItem(
+    country: String,
+    revenue: Float,
+    percentage: Float,
+    maxRevenue: Float
+) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(country, fontWeight = FontWeight.Medium)
+            Text("$${String.format("%.0f", revenue)}")
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(revenue / maxRevenue)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color(0xFF8B5CF6))
+            )
+        }
+    }
+}
+
+@Composable
+fun ContentTypeRevenueSection(analytics: DistributionAnalytics, theme: Any) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Revenue by Content Type",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                analytics.revenueByContentType.forEach { (classification, revenue) ->
+                    item {
+                        ContentTypeCard(
+                            format = classification.format,
+                            style = classification.style,
+                            orientation = classification.orientation,
+                            revenue = revenue,
+                            percentage = (revenue / analytics.totalRevenue * 100).toFloat()
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ContentTypeCard(
+    format: ContentFormat,
+    style: ContentStyle,
+    orientation: ContentOrientation,
+    revenue: Float,
+    percentage: Float
+) {
+    Card(
+        modifier = Modifier
+            .width(200.dp)
+            .height(150.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    format.name.replace("_", " "),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    "${style.name} • ${orientation.name}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Column {
+                Text(
+                    "$${String.format("%.0f", revenue)}",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "${String.format("%.1f", percentage)}%",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DurationRevenueSection(analytics: DistributionAnalytics, theme: Any) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Revenue by Content Duration",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Bar Chart Visualization
+            SimpleBarChart(
+                data = analytics.revenueByDuration.map { (duration, revenue) ->
+                    BarChartData(
+                        label = getDurationLabel(duration),
+                        value = revenue,
+                        color = Color(0xFF10B981)
+                    )
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun TitleRevenueTableSection(
+    titles: List<TitleRevenue>,
+    sortOrder: SortOrder,
+    onSortChange: (SortOrder) -> Unit,
+    onTitleClick: (TitleRevenue) -> Unit,
+    filterChannel: SocialPlatform?,
+    filterContentType: ContentFormat?,
+    theme: Any
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Content Performance by Title",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                // Sort Dropdown
+                Box {
+                    var expanded by remember { mutableStateOf(false) }
+                    TextButton(
+                        onClick = { expanded = true }
+                    ) {
+                        Text(getSortOrderLabel(sortOrder))
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        SortOrder.values().forEach { order ->
+                            DropdownMenuItem(
+                                text = { Text(getSortOrderLabel(order)) },
+                                onClick = {
+                                    onSortChange(order)
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Table Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "Title",
+                    modifier = Modifier.weight(2f),
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "Revenue",
+                    modifier = Modifier.weight(1f),
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.End
+                )
+                Text(
+                    "Views",
+                    modifier = Modifier.weight(1f),
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.End
+                )
+                Text(
+                    "Channels",
+                    modifier = Modifier.weight(1f),
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.End
+                )
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Table Rows
+            titles.forEach { title ->
+                TitleRevenueRow(
+                    title = title,
+                    onClick = { onTitleClick(title) }
+                )
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun TitleRevenueRow(
+    title: TitleRevenue,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(2f)) {
+            Text(
+                title.title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                getDurationLabel(title.contentClassification.duration),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            "$${String.format("%.0f", title.totalRevenue)}",
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.End,
+            fontWeight = FontWeight.Medium
+        )
+        Text(
+            "${title.channelBreakdown.values.sumOf { it.views } / 1000}K",
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.End
+        )
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.End
+        ) {
+            title.channelBreakdown.keys.take(2).forEach { platform ->
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(getPlatformColor(platform).copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        platform.name.take(2),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontSize = 10.sp
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TitleDetailsBottomSheet(
+    title: TitleRevenue,
+    onDismiss: () -> Unit,
+    theme: Any
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .navigationBarsPadding()
+        ) {
+            Text(
+                title.title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Metrics Overview
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "$${String.format("%.0f", title.totalRevenue)}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text("Total Revenue", style = MaterialTheme.typography.bodySmall)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "${title.channelBreakdown.values.sumOf { it.views } / 1000}K",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text("Total Views", style = MaterialTheme.typography.bodySmall)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    val avgEngagement = title.channelBreakdown.values
+                        .map { it.engagement }
+                        .average()
+                    Text(
+                        "${String.format("%.1f", avgEngagement)}%",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text("Avg Engagement", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Viewership Retention Chart
+            Text(
+                "Viewership Retention",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (title.viewershipRetention.isNotEmpty()) {
+                SimpleLineChart(
+                    data = title.viewershipRetention.map { point ->
+                        LineChartData(
+                            x = point.timestamp,
+                            y = point.viewership,
+                            label = point.eventMarker ?: ""
+                        )
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Channel Performance
+            Text(
+                "Channel Performance",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            title.channelBreakdown.forEach { (platform, performance) ->
+                ChannelPerformanceCard(platform, performance)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Recommendations
+            if (title.recommendations.isNotEmpty()) {
+                Text(
+                    "Optimization Recommendations",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                title.recommendations.forEach { recommendation ->
+                    RecommendationCard(recommendation)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+fun ChannelPerformanceCard(
+    platform: SocialPlatform,
+    performance: ChannelPerformance
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(getPlatformColor(platform)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        platform.name.take(2),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(platform.name, fontWeight = FontWeight.Medium)
+                    Text(
+                        "${performance.views / 1000}K views",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    "$${String.format("%.0f", performance.revenue)}",
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "${String.format("%.1f", performance.engagement)}% engagement",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun RecommendationCard(recommendation: MonetizationRecommendation) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = when (recommendation.priority) {
+                Priority.HIGH, Priority.CRITICAL -> MaterialTheme.colorScheme.errorContainer
+                Priority.MEDIUM -> MaterialTheme.colorScheme.tertiaryContainer
+                Priority.LOW -> MaterialTheme.colorScheme.surfaceVariant
+            }
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    recommendation.type.name.replace("_", " "),
+                    fontWeight = FontWeight.Medium
+                )
+                Badge(
+                    containerColor = when (recommendation.priority) {
+                        Priority.HIGH, Priority.CRITICAL -> MaterialTheme.colorScheme.error
+                        Priority.MEDIUM -> MaterialTheme.colorScheme.tertiary
+                        Priority.LOW -> MaterialTheme.colorScheme.secondary
+                    }
+                ) {
+                    Text(recommendation.priority.name)
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                recommendation.description,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Est. Impact: +$${String.format("%.0f", recommendation.estimatedImpact)}",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF4CAF50)
+            )
+        }
+    }
+}
+
+@Composable
+fun OptimizationRecommendationsSection(
+    suggestions: List<OptimizationSuggestion>,
+    theme: Any
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Optimization Opportunities",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val totalImpact = suggestions.sumOf { it.estimatedRevenueImpact.toDouble() }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Total Potential Revenue Increase")
+                    Text(
+                        "+$${String.format("%.0f", totalImpact)}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF4CAF50)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            suggestions.sortedByDescending { it.estimatedRevenueImpact }.forEach { suggestion ->
+                OptimizationSuggestionCard(suggestion)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun OptimizationSuggestionCard(suggestion: OptimizationSuggestion) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        suggestion.title,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        suggestion.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Badge(
+                        containerColor = when (suggestion.priority) {
+                            Priority.CRITICAL -> MaterialTheme.colorScheme.error
+                            Priority.HIGH -> MaterialTheme.colorScheme.tertiary
+                            Priority.MEDIUM -> MaterialTheme.colorScheme.secondary
+                            Priority.LOW -> MaterialTheme.colorScheme.surfaceVariant
+                        }
+                    ) {
+                        Text(suggestion.priority.name)
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "+$${String.format("%.0f", suggestion.estimatedRevenueImpact)}",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF4CAF50)
+                    )
+                }
+            }
+
+            if (suggestion.actionItems.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                suggestion.actionItems.forEach { action ->
+                    Row(
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text("• ", style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            action,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ExportAnalyticsDialog(
+    onExport: (DocExportFormat) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Export Analytics") },
+        text = {
+            Column {
+                Text("Select export format:")
+                Spacer(modifier = Modifier.height(16.dp))
+                DocExportFormat.values().forEach { format ->
+                    TextButton(
+                        onClick = { onExport(format) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Start
+                        ) {
+                            Icon(
+                                imageVector = when (format) {
+                                    DocExportFormat.CSV -> Icons.Default.TableChart
+                                    DocExportFormat.PDF -> Icons.Default.PictureAsPdf
+                                    DocExportFormat.EXCEL -> Icons.Default.GridOn
+                                    DocExportFormat.JSON -> Icons.Default.Code
+                                    DocExportFormat.DOCX -> Icons.Default.PictureAsPdf
+                                    DocExportFormat.TXT -> Icons.Default.PictureAsPdf
+                                    DocExportFormat.HTML -> Icons.Default.Code
+                                    DocExportFormat.XML -> Icons.Default.Code
+                                },
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(format.name)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+// Helper Composables for Charts
+
+@Composable
+fun SimplePieChart(data: List<PieChartData>) {
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        val total = data.sumOf { it.value.toDouble() }.toFloat()
+        var startAngle = -90f
+
+        data.forEach { slice ->
+            val sweepAngle = (slice.value / total) * 360f
+            drawArc(
+                color = slice.color,
+                startAngle = startAngle,
+                sweepAngle = sweepAngle,
+                useCenter = true
+            )
+            startAngle += sweepAngle
+        }
+    }
+}
+
+@Composable
+fun SimpleBarChart(data: List<BarChartData>) {
+    val maxValue = data.maxOfOrNull { it.value } ?: 1f
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.Bottom
+    ) {
+        data.forEach { bar ->
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height((bar.value / maxValue * 150).dp)
+                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                        .background(bar.color)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    bar.label,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SimpleLineChart(data: List<LineChartData>) {
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(150.dp)
+    ) {
+        if (data.isEmpty()) return@Canvas
+
+        val maxY = data.maxOfOrNull { it.y } ?: 100f
+        val minY = data.minOfOrNull { it.y } ?: 0f
+        val xStep = size.width / (data.size - 1)
+
+        val path = Path()
+        data.forEachIndexed { index, point ->
+            val x = index * xStep
+            val y = size.height - ((point.y - minY) / (maxY - minY) * size.height)
+
+            if (index == 0) {
+                path.moveTo(x, y)
+            } else {
+                path.lineTo(x, y)
+            }
+
+            // Draw point
+            drawCircle(
+                color = Color(0xFF8B5CF6),
+                radius = 4.dp.toPx(),
+                center = Offset(x, y)
+            )
+        }
+
+        drawPath(
+            path = path,
+            color = Color(0xFF8B5CF6),
+            style = Stroke(width = 2.dp.toPx())
+        )
+    }
+}
+
+// Data Classes for Charts
+data class PieChartData(
+    val label: String,
+    val value: Float,
+    val color: Color
+)
+
+data class BarChartData(
+    val label: String,
+    val value: Float,
+    val color: Color
+)
+
+data class LineChartData(
+    val x: Float,
+    val y: Float,
+    val label: String
+)
+
+// Helper Functions
+fun getPlatformColor(platform: SocialPlatform): Color {
+    return when (platform) {
+        SocialPlatform.YOUTUBE -> Color(0xFFFF0000)
+        SocialPlatform.TIKTOK -> Color(0xFF000000)
+        SocialPlatform.FACEBOOK -> Color(0xFF1877F2)
+        SocialPlatform.INSTAGRAM -> Color(0xFFE4405F)
+        SocialPlatform.TWITTER -> Color(0xFF1DA1F2)
+        else -> Color(0xFF9CA3AF)
+    }
+}
+
+fun getDurationLabel(duration: DurationBucket): String {
+    return when (duration) {
+        DurationBucket.EIGHT_SECONDS -> "8s"
+        DurationBucket.THIRTY_SECONDS -> "30s"
+        DurationBucket.ONE_TO_THREE_MIN -> "1-3m"
+        DurationBucket.THREE_TO_TEN_MIN -> "3-10m"
+        DurationBucket.TEN_TO_TWENTY_ONE_MIN -> "10-21m"
+        DurationBucket.TWENTY_ONE_MIN -> "21m"
+        DurationBucket.FORTY_TWO_MIN -> "42m"
+        DurationBucket.NINETY_MIN -> "90m"
+        DurationBucket.OVER_NINETY_MIN -> "90m+"
+    }
+}
+
+fun getSortOrderLabel(sortOrder: SortOrder): String {
+    return when (sortOrder) {
+        SortOrder.REVENUE_DESC -> "Revenue ↓"
+        SortOrder.REVENUE_ASC -> "Revenue ↑"
+        SortOrder.VIEWS_DESC -> "Views ↓"
+        SortOrder.VIEWS_ASC -> "Views ↑"
+        SortOrder.ENGAGEMENT_DESC -> "Engagement ↓"
+        SortOrder.ENGAGEMENT_ASC -> "Engagement ↑"
+        SortOrder.DATE_DESC -> "Date ↓"
+        SortOrder.DATE_ASC -> "Date ↑"
+        SortOrder.TITLE_ASC -> "Title A-Z"
+        SortOrder.TITLE_DESC -> "Title Z-A"
+    }
+}

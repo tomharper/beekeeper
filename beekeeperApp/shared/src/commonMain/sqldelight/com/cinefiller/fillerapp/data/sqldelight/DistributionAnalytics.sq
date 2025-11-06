@@ -1,0 +1,56 @@
+-- Distribution Analytics
+-- Store analytics data for projects and titles
+
+CREATE TABLE distribution_analytics (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL,
+    analytics_data TEXT NOT NULL, -- DistributionAnalytics as JSON
+    period_start INTEGER NOT NULL,
+    period_end INTEGER NOT NULL,
+    generated_at INTEGER NOT NULL,
+    total_revenue REAL,
+    total_views INTEGER,
+    average_engagement REAL
+);
+
+CREATE INDEX distribution_analytics_project_id ON distribution_analytics(project_id);
+CREATE INDEX distribution_analytics_period ON distribution_analytics(period_start, period_end);
+
+-- Insert or replace analytics
+insertOrReplace:
+INSERT OR REPLACE INTO distribution_analytics(
+    id, project_id, analytics_data, period_start, period_end,
+    generated_at, total_revenue, total_views, average_engagement
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Get analytics for a project
+selectByProjectId:
+SELECT * FROM distribution_analytics
+WHERE project_id = ?
+ORDER BY generated_at DESC;
+
+-- Get latest analytics
+selectLatestByProjectId:
+SELECT * FROM distribution_analytics
+WHERE project_id = ?
+ORDER BY generated_at DESC
+LIMIT 1;
+
+-- Get analytics by period
+selectByPeriod:
+SELECT * FROM distribution_analytics
+WHERE project_id = ?
+  AND period_start >= ?
+  AND period_end <= ?
+ORDER BY period_start DESC;
+
+-- Delete analytics
+deleteById:
+DELETE FROM distribution_analytics
+WHERE id = ?;
+
+-- Delete by project
+deleteByProjectId:
+DELETE FROM distribution_analytics
+WHERE project_id = ?;
