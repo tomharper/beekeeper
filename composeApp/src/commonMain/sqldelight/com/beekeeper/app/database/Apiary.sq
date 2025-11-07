@@ -1,0 +1,31 @@
+CREATE TABLE Apiary (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    location TEXT NOT NULL,
+    latitude REAL,
+    longitude REAL,
+    hiveCount INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    createdAt INTEGER NOT NULL,
+    updatedAt INTEGER NOT NULL
+);
+
+-- Query to get all apiaries
+selectAll:
+SELECT * FROM Apiary ORDER BY name ASC;
+
+-- Query to get apiary by ID
+selectById:
+SELECT * FROM Apiary WHERE id = ?;
+
+-- Insert or replace apiary
+insertOrReplace:
+INSERT OR REPLACE INTO Apiary VALUES ?;
+
+-- Delete apiary
+deleteById:
+DELETE FROM Apiary WHERE id = ?;
+
+-- Delete all apiaries
+deleteAll:
+DELETE FROM Apiary;

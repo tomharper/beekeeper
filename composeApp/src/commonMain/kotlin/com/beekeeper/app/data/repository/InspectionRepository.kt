@@ -3,9 +3,13 @@ package com.beekeeper.app.data.repository
 import com.beekeeper.app.data.api.ApiClient
 import com.beekeeper.app.data.api.CreateInspectionRequest
 import com.beekeeper.app.data.api.UpdateInspectionRequest
+import com.beekeeper.app.data.database.Database
 import com.beekeeper.app.domain.model.Inspection
 
-class InspectionRepository(private val apiClient: ApiClient) {
+class InspectionRepository(
+    private val apiClient: ApiClient,
+    private val database: Database
+) {
 
     suspend fun getInspections(
         hiveId: String? = null,
