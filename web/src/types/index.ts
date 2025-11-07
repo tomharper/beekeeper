@@ -147,3 +147,85 @@ export interface RegisterRequest {
   password: string;
   fullName: string;
 }
+
+export enum TaskType {
+  INSPECTION = 'INSPECTION',
+  FEEDING = 'FEEDING',
+  WATER_CHECK = 'WATER_CHECK',
+  SPRING_INSPECTION = 'SPRING_INSPECTION',
+  SUMMER_INSPECTION = 'SUMMER_INSPECTION',
+  FALL_PREPARATION = 'FALL_PREPARATION',
+  WINTER_CHECK = 'WINTER_CHECK',
+  PEST_TREATMENT = 'PEST_TREATMENT',
+  DISEASE_TREATMENT = 'DISEASE_TREATMENT',
+  MEDICATION = 'MEDICATION',
+  HARVEST_HONEY = 'HARVEST_HONEY',
+  EXTRACT_HONEY = 'EXTRACT_HONEY',
+  BOTTLE_HONEY = 'BOTTLE_HONEY',
+  HARVEST_WAX = 'HARVEST_WAX',
+  HARVEST_PROPOLIS = 'HARVEST_PROPOLIS',
+  SPLIT_HIVE = 'SPLIT_HIVE',
+  COMBINE_HIVES = 'COMBINE_HIVES',
+  REQUEEN = 'REQUEEN',
+  SWARM_PREVENTION = 'SWARM_PREVENTION',
+  SWARM_COLLECTION = 'SWARM_COLLECTION',
+  ADD_BOXES = 'ADD_BOXES',
+  REMOVE_BOXES = 'REMOVE_BOXES',
+  CLEAN_EQUIPMENT = 'CLEAN_EQUIPMENT',
+  REPAIR_EQUIPMENT = 'REPAIR_EQUIPMENT',
+  BUILD_FRAMES = 'BUILD_FRAMES',
+  EDUCATION = 'EDUCATION',
+  RECORD_KEEPING = 'RECORD_KEEPING',
+  ORDER_SUPPLIES = 'ORDER_SUPPLIES',
+  GENERAL = 'GENERAL',
+  OTHER = 'OTHER',
+}
+
+export enum TaskStatus {
+  PENDING = 'PENDING',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  OVERDUE = 'OVERDUE',
+}
+
+export enum TaskPriority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  URGENT = 'URGENT',
+}
+
+export enum RecurrenceFrequency {
+  DAILY = 'DAILY',
+  WEEKLY = 'WEEKLY',
+  BIWEEKLY = 'BIWEEKLY',
+  MONTHLY = 'MONTHLY',
+  QUARTERLY = 'QUARTERLY',
+  YEARLY = 'YEARLY',
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  taskType: TaskType;
+  dueDate: Date;
+  reminderDate?: Date;
+  hiveId?: string;
+  apiaryId?: string;
+  userId: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  completedDate?: Date;
+  estimatedDurationMinutes?: number;
+  weatherDependent: boolean;
+  minimumTemperature?: number;
+  notes: string;
+  recurrenceFrequency?: RecurrenceFrequency;
+  recurrenceInterval?: number;
+  recurrenceEndDate?: Date;
+  recurrenceCount?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}

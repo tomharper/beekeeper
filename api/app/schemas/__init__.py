@@ -7,6 +7,7 @@ from .recommendation import (
     RecommendationResponse,
 )
 from .weather import WeatherResponse, WeatherCondition
+from .task import TaskCreate, TaskUpdate, TaskResponse, RecurrenceData
 
 __all__ = [
     "ApiaryCreate",
@@ -23,4 +24,8 @@ __all__ = [
     "RecommendationResponse",
     "WeatherResponse",
     "WeatherCondition",
+    "TaskCreate",
+    "TaskUpdate",
+    "TaskResponse",
+    "RecurrenceData",
 ]

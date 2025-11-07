@@ -163,4 +163,99 @@ export const apiClient = {
     });
     return handleResponse(response);
   },
+
+  // Tasks
+  async getTasks(params?: {
+    status?: string;
+    hiveId?: string;
+    apiaryId?: string;
+    upcomingDays?: number;
+  }) {
+    const token = localStorage.getItem('authToken');
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('task_status', params.status);
+    if (params?.hiveId) queryParams.append('hive_id', params.hiveId);
+    if (params?.apiaryId) queryParams.append('apiary_id', params.apiaryId);
+    if (params?.upcomingDays) queryParams.append('upcoming_days', params.upcomingDays.toString());
+
+    const url = queryParams.toString()
+      ? `${API_BASE_URL}/tasks?${queryParams}`
+      : `${API_BASE_URL}/tasks`;
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async getPendingTasks() {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/tasks/pending`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async getOverdueTasks() {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/tasks/overdue`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async getTask(id: string) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async createTask(data: any) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/tasks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async updateTask(id: string, data: any) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async completeTask(id: string) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/tasks/${id}/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  async deleteTask(id: string) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
 };
