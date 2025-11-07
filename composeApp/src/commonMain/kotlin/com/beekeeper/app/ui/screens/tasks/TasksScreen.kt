@@ -1,7 +1,6 @@
 package com.beekeeper.app.ui.screens.tasks
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,7 +28,7 @@ import kotlinx.datetime.toLocalDateTime
 @Composable
 fun TasksScreen(
     viewModel: TasksViewModel,
-    onBackClick: () -> Unit
+    onBackClick: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -38,8 +37,10 @@ fun TasksScreen(
             TopAppBar(
                 title = { Text("Tasks") },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                    if (onBackClick != null) {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.Default.ArrowBack, "Back")
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -47,6 +48,15 @@ fun TasksScreen(
                     titleContentColor = Color.White
                 )
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { /* TODO: Navigate to create task screen */ },
+                containerColor = Color(0xFFFFD700),
+                contentColor = Color.Black
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Create Task")
+            }
         },
         containerColor = Color(0xFF0F0F0F)
     ) { padding ->

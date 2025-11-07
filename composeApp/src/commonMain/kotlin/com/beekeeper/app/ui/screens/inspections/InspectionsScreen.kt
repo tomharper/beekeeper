@@ -23,7 +23,7 @@ import com.beekeeper.app.ui.viewmodel.InspectionsViewModel
 @Composable
 fun InspectionsScreen(
     viewModel: InspectionsViewModel,
-    onBackClick: () -> Unit
+    onBackClick: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -32,8 +32,10 @@ fun InspectionsScreen(
             TopAppBar(
                 title = { Text("Inspections") },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                    if (onBackClick != null) {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.Default.ArrowBack, "Back")
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -41,6 +43,15 @@ fun InspectionsScreen(
                     titleContentColor = Color.White
                 )
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { /* TODO: Navigate to create inspection screen */ },
+                containerColor = Color(0xFFFFD700),
+                contentColor = Color.Black
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Create Inspection")
+            }
         },
         containerColor = Color(0xFF0F0F0F)
     ) { padding ->
