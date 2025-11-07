@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Menu, RefreshCw, Plus, CheckCircle, AlertTriangle, XCircle, ChevronRight, Settings, Loader, User } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { Apiary, ApiaryStatus } from '../types';
+import BottomNav from '../components/BottomNav';
 
 export default function ApiaryListPage() {
   const [apiaries, setApiaries] = useState<Apiary[]>([]);
@@ -131,9 +132,11 @@ export default function ApiaryListPage() {
       </div>
 
       {/* FAB */}
-      <button className="fixed bottom-6 right-6 w-14 h-14 bg-beekeeper-gold rounded-full flex items-center justify-center shadow-lg hover:bg-beekeeper-gold-dark transition-colors">
+      <button className="fixed bottom-24 right-6 w-14 h-14 bg-beekeeper-gold rounded-full flex items-center justify-center shadow-lg hover:bg-beekeeper-gold-dark transition-colors">
         <Plus className="w-6 h-6 text-black" />
       </button>
+
+      <BottomNav />
     </div>
   );
 }

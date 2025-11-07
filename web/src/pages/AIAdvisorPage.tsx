@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Menu, Bell, CheckCircle, Sparkles, Calendar, AlertTriangle, Info, Thermometer, Droplets, Wind, Sun, Cloud, CloudRain, CloudSnow, Loader } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { Weather, Alert, AlertSeverity, WeatherCondition } from '../types';
+import BottomNav from '../components/BottomNav';
 
 export default function AIAdvisorPage() {
   const [weather, setWeather] = useState<Weather | null>(null);
@@ -212,6 +213,8 @@ export default function AIAdvisorPage() {
           </div>
         )}
       </div>
+
+      <BottomNav />
     </div>
   );
 }

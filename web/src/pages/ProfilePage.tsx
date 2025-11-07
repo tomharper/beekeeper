@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Menu, Bell, User, Mail, LogOut, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import BottomNav from '../components/BottomNav';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -78,11 +79,13 @@ export default function ProfilePage() {
         </div>
 
         {/* App Info */}
-        <div className="text-center text-text-secondary text-sm">
+        <div className="text-center text-text-secondary text-sm mb-20">
           <p>Beekeeper App v1.0.0</p>
           <p className="mt-1">Managing apiaries with care</p>
         </div>
       </div>
+
+      <BottomNav />
     </div>
   );
 }

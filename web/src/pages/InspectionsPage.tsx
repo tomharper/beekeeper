@@ -16,6 +16,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { apiClient } from '../api/client';
+import BottomNav from '../components/BottomNav';
 import {
   Inspection,
   BroodPattern,
@@ -929,36 +930,7 @@ export default function InspectionsPage() {
         </div>
       )}
 
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card-dark border-t border-card-border p-4">
-        <div className="max-w-6xl mx-auto flex justify-around">
-          <button
-            onClick={() => navigate('/')}
-            className="flex flex-col items-center gap-1 text-text-secondary hover:text-text-primary transition"
-          >
-            <Calendar className="w-6 h-6" />
-            <span className="text-xs">Apiaries</span>
-          </button>
-          <button
-            onClick={() => navigate('/tasks')}
-            className="flex flex-col items-center gap-1 text-text-secondary hover:text-text-primary transition"
-          >
-            <CheckCircle className="w-6 h-6" />
-            <span className="text-xs">Tasks</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 text-beekeeper-gold">
-            <Eye className="w-6 h-6" />
-            <span className="text-xs">Inspections</span>
-          </button>
-          <button
-            onClick={() => navigate('/advisor')}
-            className="flex flex-col items-center gap-1 text-text-secondary hover:text-text-primary transition"
-          >
-            <AlertCircle className="w-6 h-6" />
-            <span className="text-xs">Advisor</span>
-          </button>
-        </div>
-      </div>
+      <BottomNav />
     </div>
   );
 }
