@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "beekeeper-api"
+version = "0.1.0"
+description = "FastAPI backend for Beekeeper app"
+authors = ["Tom Harper <d.thomas.harper@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.115.5"
+uvicorn = {extras = ["standard"], version = "^0.32.1"}
+sqlalchemy = "^2.0.36"
+pydantic = "^2.10.3"
+pydantic-settings = "^2.6.1"
+python-dotenv = "^1.0.1"
+alembic = "^1.14.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+black = "^24.10.0"
+ruff = "^0.8.3"
+mypy = "^1.13.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
