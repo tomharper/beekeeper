@@ -204,4 +204,11 @@ class ApiClient(private val baseUrl: String = ApiConfig.getBaseUrl()) {
             setBody(mapOf("message" to message))
         }.body()
     }
+
+    // AI Advisor Alerts
+    suspend fun getAdvisorAlerts(): List<Alert> {
+        return httpClient.get("$baseUrl/advisor/alerts") {
+            addAuthHeader()
+        }.body()
+    }
 }

@@ -22,7 +22,12 @@ enum class AlertType {
     TREATMENT_DUE,
     WEATHER_WARNING,
     HONEY_FLOW,
-    GENERAL
+    GENERAL,
+    TASK,
+    PEST,
+    DISEASE,
+    HIVE_HEALTH,
+    SEASONAL
 }
 
 enum class AlertSeverity {

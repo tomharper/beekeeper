@@ -1,9 +1,15 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from anthropic import Anthropic
 import os
 import uuid
 from datetime import datetime
+from typing import List
+
+from app.database import get_db
+from app.services import AIAdvisorService
+from app.schemas import AlertResponse
 
 router = APIRouter()
 
@@ -34,6 +40,31 @@ class ChatMessage(BaseModel):
     content: str
     role: str
     timestamp: str
+
+
+@router.get("/advisor/alerts", response_model=List[AlertResponse])
+async def get_advisor_alerts(db: Session = Depends(get_db)):
+    """
+    Get intelligent alerts and recommendations from AI Advisor.
+
+    Analyzes hive data to generate actionable alerts for:
+    - Overdue tasks
+    - Health issues detected in inspections
+    - Pest/disease warnings
+    - Queen problems
+    - Low resource levels
+    - Seasonal reminders
+    """
+    try:
+        advisor_service = AIAdvisorService(db)
+        alerts = advisor_service.generate_alerts()
+        return alerts
+    except Exception as e:
+        print(f"Error generating alerts: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate alerts: {str(e)}",
+        )
 
 
 @router.post("/chat", response_model=ChatMessage)
