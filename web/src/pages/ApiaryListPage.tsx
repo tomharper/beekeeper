@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Menu, RefreshCw, Plus, CheckCircle, AlertTriangle, XCircle, ChevronRight, Settings, Loader } from 'lucide-react';
+import { Menu, RefreshCw, Plus, CheckCircle, AlertTriangle, XCircle, ChevronRight, Settings, Loader, User } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { Apiary, ApiaryStatus } from '../types';
 
@@ -56,9 +56,14 @@ export default function ApiaryListPage() {
           <Menu className="w-6 h-6 text-text-primary" />
         </button>
         <h1 className="text-xl font-bold text-text-primary">My Apiaries</h1>
-        <button className="p-2" onClick={loadApiaries} disabled={loading}>
-          <RefreshCw className={`w-6 h-6 text-text-primary ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button className="p-2" onClick={loadApiaries} disabled={loading}>
+            <RefreshCw className={`w-6 h-6 text-text-primary ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <Link to="/profile" className="p-2">
+            <User className="w-6 h-6 text-text-primary" />
+          </Link>
+        </div>
       </div>
 
       {/* Content */}

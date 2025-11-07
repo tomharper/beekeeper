@@ -124,3 +124,26 @@ export interface Weather {
   condition: WeatherCondition;
   description: string;
 }
+
+export interface User {
+  id: string;
+  email: string;
+  fullName: string;
+}
+
+export interface AuthToken {
+  accessToken: string;
+  tokenType: string;
+  user: User;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  fullName: string;
+}

@@ -10,6 +10,7 @@ from .hive import (
 )
 from .alert import Alert, AlertType, AlertSeverity
 from .recommendation import Recommendation, RecommendationType, Priority
+from .user import User
 
 __all__ = [
     "Base",
@@ -27,4 +28,5 @@ __all__ = [
     "Recommendation",
     "RecommendationType",
     "Priority",
+    "User",
 ]

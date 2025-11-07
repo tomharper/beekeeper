@@ -130,4 +130,37 @@ export const apiClient = {
     const response = await fetch(`${API_BASE_URL}/weather`);
     return handleResponse(response);
   },
+
+  // Auth
+  async register(data: { email: string; password: string; fullName: string }) {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async login(data: { email: string; password: string }) {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async getCurrentUser(token: string) {
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async logout() {
+    const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+    });
+    return handleResponse(response);
+  },
 };
