@@ -9,7 +9,7 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 import com.beekeeper.app.domain.model.*
 
-class ApiClient(private val baseUrl: String = "http://localhost:2020/api") {
+class ApiClient(private val baseUrl: String = ApiConfig.getBaseUrl()) {
     private val httpClient = HttpClient {
         install(ContentNegotiation) {
             json(Json {
@@ -193,6 +193,15 @@ class ApiClient(private val baseUrl: String = "http://localhost:2020/api") {
         return httpClient.get("$baseUrl/recommendations") {
             parameter("hive_id", hiveId)
             addAuthHeader()
+        }.body()
+    }
+
+    // AI Chat
+    suspend fun sendChatMessage(message: String): ChatMessage {
+        return httpClient.post("$baseUrl/chat") {
+            addAuthHeader()
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("message" to message))
         }.body()
     }
 }
