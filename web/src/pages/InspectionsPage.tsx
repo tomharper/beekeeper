@@ -11,6 +11,9 @@ import {
   X,
   Droplets,
   Thermometer,
+  Upload,
+  Image as ImageIcon,
+  Sparkles,
 } from 'lucide-react';
 import { apiClient } from '../api/client';
 import {
@@ -21,6 +24,7 @@ import {
   InspectionHealthStatus,
   ResourceLevel,
   QueenCellStatus,
+  Hive,
 } from '../types';
 import { formatDistanceToNow, format } from 'date-fns';
 
@@ -30,14 +34,55 @@ export default function InspectionsPage() {
   const hiveId = searchParams.get('hiveId');
 
   const [inspections, setInspections] = useState<Inspection[]>([]);
+  const [hives, setHives] = useState<Hive[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedHiveId, setSelectedHiveId] = useState(hiveId || '');
 
+  // Form state
+  const [formData, setFormData] = useState({
+    hiveId: hiveId || '',
+    inspectionDate: new Date().toISOString().split('T')[0],
+    durationMinutes: 30,
+    queenSeen: false,
+    queenMarked: false,
+    queenCells: QueenCellStatus.NONE,
+    broodPattern: BroodPattern.GOOD,
+    population: ColonyPopulation.MEDIUM,
+    temperament: ColonyTemperament.CALM,
+    healthStatus: InspectionHealthStatus.HEALTHY,
+    honeyStores: ResourceLevel.MEDIUM,
+    pollenStores: ResourceLevel.MEDIUM,
+    varroaMitesDetected: false,
+    otherPestsDetected: false,
+    feedingDone: false,
+    treatmentApplied: false,
+    weatherTemp: '',
+    weatherConditions: '',
+    notes: '',
+    nextInspectionDate: '',
+  });
+
+  // Photo state
+  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+
   useEffect(() => {
     loadInspections();
+    loadHives();
   }, [hiveId]);
+
+  const loadHives = async () => {
+    try {
+      const hivesData = await apiClient.getHives();
+      setHives(hivesData as Hive[]);
+    } catch (err) {
+      console.error('Failed to load hives:', err);
+    }
+  };
 
   const loadInspections = async () => {
     try {
@@ -78,6 +123,99 @@ export default function InspectionsPage() {
     } catch (err) {
       console.error('Failed to delete inspection:', err);
     }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingPhoto(true);
+      const result: any = await apiClient.uploadPhoto(file);
+      setUploadedPhotos([...uploadedPhotos, result.url]);
+    } catch (err) {
+      console.error('Failed to upload photo:', err);
+      alert('Failed to upload photo. Please try again.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleAnalyzePhoto = async (photoUrl: string, analysisType: string = 'general') => {
+    try {
+      setAnalyzingPhoto(true);
+      const result: any = await apiClient.analyzePhoto(photoUrl, analysisType);
+      setAiAnalysis(result.analysis);
+    } catch (err) {
+      console.error('Failed to analyze photo:', err);
+      alert('Failed to analyze photo. Please try again.');
+    } finally {
+      setAnalyzingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = async (photoUrl: string) => {
+    try {
+      await apiClient.deletePhoto(photoUrl);
+      setUploadedPhotos(uploadedPhotos.filter((url) => url !== photoUrl));
+    } catch (err) {
+      console.error('Failed to delete photo:', err);
+    }
+  };
+
+  const handleSubmitInspection = async () => {
+    if (!formData.hiveId) {
+      alert('Please select a hive');
+      return;
+    }
+
+    try {
+      const inspectionData = {
+        ...formData,
+        inspectionDate: new Date(formData.inspectionDate).toISOString(),
+        nextInspectionDate: formData.nextInspectionDate
+          ? new Date(formData.nextInspectionDate).toISOString()
+          : undefined,
+        weatherTemp: formData.weatherTemp ? parseFloat(formData.weatherTemp) : undefined,
+        photos: uploadedPhotos,
+        aiAnalysis: aiAnalysis,
+      };
+
+      await apiClient.createInspection(inspectionData);
+      setShowCreateModal(false);
+      resetForm();
+      loadInspections();
+    } catch (err) {
+      console.error('Failed to create inspection:', err);
+      alert('Failed to create inspection. Please try again.');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      hiveId: hiveId || '',
+      inspectionDate: new Date().toISOString().split('T')[0],
+      durationMinutes: 30,
+      queenSeen: false,
+      queenMarked: false,
+      queenCells: QueenCellStatus.NONE,
+      broodPattern: BroodPattern.GOOD,
+      population: ColonyPopulation.MEDIUM,
+      temperament: ColonyTemperament.CALM,
+      healthStatus: InspectionHealthStatus.HEALTHY,
+      honeyStores: ResourceLevel.MEDIUM,
+      pollenStores: ResourceLevel.MEDIUM,
+      varroaMitesDetected: false,
+      otherPestsDetected: false,
+      feedingDone: false,
+      treatmentApplied: false,
+      weatherTemp: '',
+      weatherConditions: '',
+      notes: '',
+      nextInspectionDate: '',
+    });
+    setUploadedPhotos([]);
+    setAiAnalysis(null);
   };
 
   const getHealthStatusColor = (status: InspectionHealthStatus) => {
@@ -306,38 +444,486 @@ export default function InspectionsPage() {
         )}
       </div>
 
-      {/* Create Modal Placeholder */}
+      {/* Create Inspection Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-card-dark border border-card-border rounded-xl max-w-2xl w-full p-6">
-            <div className="flex items-center justify-between mb-6">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-card-dark border border-card-border rounded-xl max-w-4xl w-full my-8">
+            <div className="sticky top-0 bg-card-dark border-b border-card-border p-6 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-text-primary">Create Inspection</h2>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  resetForm();
+                }}
                 className="text-text-secondary hover:text-text-primary"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="text-center py-8">
-              <p className="text-text-secondary mb-4">
-                Inspection form coming soon! This will include:
-              </p>
-              <ul className="text-left max-w-md mx-auto text-text-secondary space-y-2">
-                <li>• Queen observations</li>
-                <li>• Brood pattern assessment</li>
-                <li>• Colony temperament & population</li>
-                <li>• Health & pest detection</li>
-                <li>• Resource levels (honey, pollen)</li>
-                <li>• Actions taken & notes</li>
-                <li>• Photo upload for AI analysis</li>
-              </ul>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="mt-6 bg-beekeeper-gold text-black px-6 py-2 rounded-lg font-medium"
-              >
-                Close
-              </button>
+
+            <div className="p-6 space-y-6">
+              {/* Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-2">
+                    Hive *
+                  </label>
+                  <select
+                    value={formData.hiveId}
+                    onChange={(e) => setFormData({ ...formData, hiveId: e.target.value })}
+                    className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                  >
+                    <option value="">Select a hive</option>
+                    {hives.map((hive) => (
+                      <option key={hive.id} value={hive.id}>
+                        {hive.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-2">
+                    Inspection Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.inspectionDate}
+                    onChange={(e) => setFormData({ ...formData, inspectionDate: e.target.value })}
+                    className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-2">
+                    Duration (minutes)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.durationMinutes}
+                    onChange={(e) =>
+                      setFormData({ ...formData, durationMinutes: parseInt(e.target.value) || 0 })
+                    }
+                    className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-2">
+                    Next Inspection Date
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.nextInspectionDate}
+                    onChange={(e) =>
+                      setFormData({ ...formData, nextInspectionDate: e.target.value })
+                    }
+                    className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Queen Observations */}
+              <div className="border border-card-border rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">Queen Observations</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.queenSeen}
+                      onChange={(e) => setFormData({ ...formData, queenSeen: e.target.checked })}
+                      className="w-5 h-5"
+                    />
+                    <span className="text-text-primary">Queen Seen</span>
+                  </label>
+
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.queenMarked}
+                      onChange={(e) => setFormData({ ...formData, queenMarked: e.target.checked })}
+                      className="w-5 h-5"
+                    />
+                    <span className="text-text-primary">Queen Marked</span>
+                  </label>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                      Queen Cells
+                    </label>
+                    <select
+                      value={formData.queenCells}
+                      onChange={(e) =>
+                        setFormData({ ...formData, queenCells: e.target.value as QueenCellStatus })
+                      }
+                      className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                    >
+                      {Object.values(QueenCellStatus).map((status) => (
+                        <option key={status} value={status}>
+                          {formatEnum(status)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Colony Assessment */}
+              <div className="border border-card-border rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">Colony Assessment</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                      Brood Pattern
+                    </label>
+                    <select
+                      value={formData.broodPattern}
+                      onChange={(e) =>
+                        setFormData({ ...formData, broodPattern: e.target.value as BroodPattern })
+                      }
+                      className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                    >
+                      {Object.values(BroodPattern).map((pattern) => (
+                        <option key={pattern} value={pattern}>
+                          {formatEnum(pattern)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                      Population
+                    </label>
+                    <select
+                      value={formData.population}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          population: e.target.value as ColonyPopulation,
+                        })
+                      }
+                      className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                    >
+                      {Object.values(ColonyPopulation).map((pop) => (
+                        <option key={pop} value={pop}>
+                          {formatEnum(pop)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                      Temperament
+                    </label>
+                    <select
+                      value={formData.temperament}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          temperament: e.target.value as ColonyTemperament,
+                        })
+                      }
+                      className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                    >
+                      {Object.values(ColonyTemperament).map((temp) => (
+                        <option key={temp} value={temp}>
+                          {formatEnum(temp)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                      Health Status
+                    </label>
+                    <select
+                      value={formData.healthStatus}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          healthStatus: e.target.value as InspectionHealthStatus,
+                        })
+                      }
+                      className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                    >
+                      {Object.values(InspectionHealthStatus).map((status) => (
+                        <option key={status} value={status}>
+                          {formatEnum(status)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Resources */}
+              <div className="border border-card-border rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">Resource Levels</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                      Honey Stores
+                    </label>
+                    <select
+                      value={formData.honeyStores}
+                      onChange={(e) =>
+                        setFormData({ ...formData, honeyStores: e.target.value as ResourceLevel })
+                      }
+                      className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                    >
+                      {Object.values(ResourceLevel).map((level) => (
+                        <option key={level} value={level}>
+                          {formatEnum(level)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                      Pollen Stores
+                    </label>
+                    <select
+                      value={formData.pollenStores}
+                      onChange={(e) =>
+                        setFormData({ ...formData, pollenStores: e.target.value as ResourceLevel })
+                      }
+                      className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                    >
+                      {Object.values(ResourceLevel).map((level) => (
+                        <option key={level} value={level}>
+                          {formatEnum(level)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pests & Actions */}
+              <div className="border border-card-border rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">Pests & Actions</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.varroaMitesDetected}
+                      onChange={(e) =>
+                        setFormData({ ...formData, varroaMitesDetected: e.target.checked })
+                      }
+                      className="w-5 h-5"
+                    />
+                    <span className="text-text-primary">Varroa Mites</span>
+                  </label>
+
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.otherPestsDetected}
+                      onChange={(e) =>
+                        setFormData({ ...formData, otherPestsDetected: e.target.checked })
+                      }
+                      className="w-5 h-5"
+                    />
+                    <span className="text-text-primary">Other Pests</span>
+                  </label>
+
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.feedingDone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, feedingDone: e.target.checked })
+                      }
+                      className="w-5 h-5"
+                    />
+                    <span className="text-text-primary">Feeding Done</span>
+                  </label>
+
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.treatmentApplied}
+                      onChange={(e) =>
+                        setFormData({ ...formData, treatmentApplied: e.target.checked })
+                      }
+                      className="w-5 h-5"
+                    />
+                    <span className="text-text-primary">Treatment Applied</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Weather */}
+              <div className="border border-card-border rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">Weather Conditions</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                      Temperature (°F)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.weatherTemp}
+                      onChange={(e) => setFormData({ ...formData, weatherTemp: e.target.value })}
+                      className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                      Conditions
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.weatherConditions}
+                      onChange={(e) =>
+                        setFormData({ ...formData, weatherConditions: e.target.value })
+                      }
+                      placeholder="e.g., Sunny, Cloudy, Rainy"
+                      className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Photo Upload & AI Analysis */}
+              <div className="border border-card-border rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5" />
+                  Photos & AI Analysis
+                </h3>
+
+                {/* Upload Button */}
+                <div className="mb-4">
+                  <label className="cursor-pointer inline-flex items-center gap-2 bg-beekeeper-gold text-black px-4 py-2 rounded-lg font-medium hover:bg-beekeeper-gold/90 transition">
+                    <Upload className="w-5 h-5" />
+                    {uploadingPhoto ? 'Uploading...' : 'Upload Photo'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      disabled={uploadingPhoto}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* Uploaded Photos */}
+                {uploadedPhotos.length > 0 && (
+                  <div className="space-y-3">
+                    {uploadedPhotos.map((photoUrl, index) => (
+                      <div
+                        key={index}
+                        className="bg-background-dark rounded-lg p-3 flex items-center gap-3"
+                      >
+                        <img
+                          src={photoUrl}
+                          alt={`Inspection photo ${index + 1}`}
+                          className="w-20 h-20 object-cover rounded"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm text-text-secondary">Photo {index + 1}</p>
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={() => handleAnalyzePhoto(photoUrl, 'general')}
+                              disabled={analyzingPhoto}
+                              className="text-sm bg-beekeeper-gold/20 text-beekeeper-gold px-3 py-1 rounded hover:bg-beekeeper-gold/30 transition flex items-center gap-1"
+                            >
+                              <Sparkles className="w-4 h-4" />
+                              {analyzingPhoto ? 'Analyzing...' : 'Analyze'}
+                            </button>
+                            <button
+                              onClick={() => handleRemovePhoto(photoUrl)}
+                              className="text-sm bg-status-alert/20 text-status-alert px-3 py-1 rounded hover:bg-status-alert/30 transition"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* AI Analysis Results */}
+                {aiAnalysis && (
+                  <div className="mt-4 bg-beekeeper-gold/10 border border-beekeeper-gold/30 rounded-lg p-4">
+                    <h4 className="font-semibold text-beekeeper-gold mb-3 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5" />
+                      AI Analysis Results
+                    </h4>
+                    <div className="space-y-3">
+                      {aiAnalysis.findings && aiAnalysis.findings.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-text-primary mb-1">Findings:</p>
+                          <ul className="text-sm text-text-secondary space-y-1">
+                            {aiAnalysis.findings.map((finding: string, idx: number) => (
+                              <li key={idx}>• {finding}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {aiAnalysis.recommendations && aiAnalysis.recommendations.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-text-primary mb-1">
+                            Recommendations:
+                          </p>
+                          <ul className="text-sm text-text-secondary space-y-1">
+                            {aiAnalysis.recommendations.map((rec: string, idx: number) => (
+                              <li key={idx}>• {rec}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {aiAnalysis.full_analysis && (
+                        <details className="mt-2">
+                          <summary className="text-sm font-medium text-text-primary cursor-pointer">
+                            Full Analysis
+                          </summary>
+                          <p className="text-sm text-text-secondary mt-2 whitespace-pre-wrap">
+                            {aiAnalysis.full_analysis}
+                          </p>
+                        </details>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-2">Notes</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Additional observations or notes..."
+                  rows={4}
+                  className="w-full bg-background-dark border border-card-border rounded-lg px-4 py-2 text-text-primary"
+                />
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleSubmitInspection}
+                  className="flex-1 bg-beekeeper-gold text-black px-6 py-3 rounded-lg font-medium hover:bg-beekeeper-gold/90 transition"
+                >
+                  Create Inspection
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    resetForm();
+                  }}
+                  className="px-6 py-3 bg-card-border text-text-primary rounded-lg font-medium hover:bg-card-border/80 transition"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>

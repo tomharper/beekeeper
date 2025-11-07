@@ -334,4 +334,42 @@ export const apiClient = {
     });
     return handleResponse(response);
   },
+
+  // Photos
+  async uploadPhoto(file: File, folder: string = 'inspections') {
+    const token = localStorage.getItem('authToken');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/photos/upload?folder=${folder}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    return handleResponse(response);
+  },
+
+  async analyzePhoto(imageUrl: string, analysisType: string = 'general') {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(
+      `${API_BASE_URL}/photos/analyze?image_url=${encodeURIComponent(imageUrl)}&analysis_type=${analysisType}`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return handleResponse(response);
+  },
+
+  async deletePhoto(photoUrl: string) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(
+      `${API_BASE_URL}/photos/delete?photo_url=${encodeURIComponent(photoUrl)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return handleResponse(response);
+  },
 };
