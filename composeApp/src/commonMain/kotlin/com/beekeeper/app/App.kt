@@ -103,7 +103,10 @@ fun App() {
 
             composable<Screen.Inspections> {
                 InspectionsScreen(
-                    viewModel = koinInject()
+                    viewModel = koinInject(),
+                    onCreateInspection = {
+                        navController.navigate(Screen.CreateInspection())
+                    }
                 )
             }
 
@@ -119,6 +122,23 @@ fun App() {
                 InspectionsScreen(
                     viewModel = viewModel,
                     onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onCreateInspection = {
+                        navController.navigate(Screen.CreateInspection(hiveId = args.hiveId))
+                    }
+                )
+            }
+
+            composable<Screen.CreateInspection> { backStackEntry ->
+                val args = backStackEntry.toRoute<Screen.CreateInspection>()
+                com.beekeeper.app.ui.screens.inspections.CreateInspectionScreen(
+                    viewModel = koinInject(),
+                    hiveId = args.hiveId,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onInspectionCreated = {
                         navController.popBackStack()
                     }
                 )
