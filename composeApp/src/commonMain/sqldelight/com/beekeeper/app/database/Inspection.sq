@@ -1,0 +1,74 @@
+CREATE TABLE Inspection (
+    id TEXT NOT NULL PRIMARY KEY,
+    hiveId TEXT NOT NULL,
+    userId TEXT NOT NULL,
+    inspectionDate INTEGER NOT NULL,
+    durationMinutes INTEGER,
+    queenSeen INTEGER NOT NULL DEFAULT 0,
+    queenMarked INTEGER NOT NULL DEFAULT 0,
+    queenColor TEXT,
+    queenCells TEXT NOT NULL,
+    eggsSeen INTEGER NOT NULL DEFAULT 0,
+    larvaeSeen INTEGER NOT NULL DEFAULT 0,
+    cappedBroodSeen INTEGER NOT NULL DEFAULT 0,
+    broodPattern TEXT NOT NULL,
+    broodFrames INTEGER,
+    population TEXT NOT NULL,
+    temperament TEXT NOT NULL,
+    healthStatus TEXT NOT NULL,
+    honeyStores TEXT NOT NULL,
+    honeyFrames INTEGER,
+    pollenStores TEXT NOT NULL,
+    pollenFrames INTEGER,
+    varroaMitesDetected INTEGER NOT NULL DEFAULT 0,
+    varroaLevel TEXT,
+    otherPestsDetected INTEGER NOT NULL DEFAULT 0,
+    pestDescription TEXT,
+    diseaseDetected INTEGER NOT NULL DEFAULT 0,
+    diseaseDescription TEXT,
+    feedingDone INTEGER NOT NULL DEFAULT 0,
+    feedingType TEXT,
+    feedingAmount TEXT,
+    treatmentApplied INTEGER NOT NULL DEFAULT 0,
+    treatmentType TEXT,
+    equipmentChanges TEXT,
+    weatherTemp REAL,
+    weatherConditions TEXT,
+    notes TEXT,
+    photos TEXT,
+    nextInspectionDate INTEGER,
+    createdAt INTEGER NOT NULL,
+    updatedAt INTEGER NOT NULL
+);
+
+-- Query to get all inspections
+selectAll:
+SELECT * FROM Inspection ORDER BY inspectionDate DESC;
+
+-- Query to get inspections by hive
+selectByHive:
+SELECT * FROM Inspection WHERE hiveId = ? ORDER BY inspectionDate DESC;
+
+-- Query to get recent inspections
+selectRecent:
+SELECT * FROM Inspection ORDER BY inspectionDate DESC LIMIT ?;
+
+-- Query to get latest inspection for a hive
+selectLatestByHive:
+SELECT * FROM Inspection WHERE hiveId = ? ORDER BY inspectionDate DESC LIMIT 1;
+
+-- Query to get inspection by ID
+selectById:
+SELECT * FROM Inspection WHERE id = ?;
+
+-- Insert or replace inspection
+insertOrReplace:
+INSERT OR REPLACE INTO Inspection VALUES ?;
+
+-- Delete inspection
+deleteById:
+DELETE FROM Inspection WHERE id = ?;
+
+-- Delete all inspections
+deleteAll:
+DELETE FROM Inspection;

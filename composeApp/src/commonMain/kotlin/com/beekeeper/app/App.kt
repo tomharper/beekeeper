@@ -11,7 +11,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.beekeeper.app.navigation.Screen
-import com.beekeeper.app.ui.screens.advisor.AIAdvisorScreen
+import com.beekeeper.app.ui.screens.advisor.AIAdvisorChatScreen
 import com.beekeeper.app.ui.screens.apiary.ApiaryListScreen
 import com.beekeeper.app.ui.screens.dashboard.ApiaryDashboardScreen
 import com.beekeeper.app.ui.screens.hive.HiveDetailsScreen
@@ -88,7 +88,8 @@ fun App() {
             }
 
             composable<Screen.AIAdvisor> {
-                AIAdvisorScreen(
+                AIAdvisorChatScreen(
+                    viewModel = koinInject(),
                     onBackClick = {
                         navController.popBackStack()
                     }
@@ -103,7 +104,10 @@ fun App() {
 
             composable<Screen.Inspections> {
                 InspectionsScreen(
-                    viewModel = koinInject()
+                    viewModel = koinInject(),
+                    onCreateInspection = {
+                        navController.navigate(Screen.CreateInspection())
+                    }
                 )
             }
 
@@ -119,6 +123,23 @@ fun App() {
                 InspectionsScreen(
                     viewModel = viewModel,
                     onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onCreateInspection = {
+                        navController.navigate(Screen.CreateInspection(hiveId = args.hiveId))
+                    }
+                )
+            }
+
+            composable<Screen.CreateInspection> { backStackEntry ->
+                val args = backStackEntry.toRoute<Screen.CreateInspection>()
+                com.beekeeper.app.ui.screens.inspections.CreateInspectionScreen(
+                    viewModel = koinInject(),
+                    hiveId = args.hiveId,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onInspectionCreated = {
                         navController.popBackStack()
                     }
                 )

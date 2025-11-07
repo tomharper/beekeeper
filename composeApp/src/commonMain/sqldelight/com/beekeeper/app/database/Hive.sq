@@ -1,0 +1,38 @@
+CREATE TABLE Hive (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    apiaryId TEXT NOT NULL,
+    status TEXT NOT NULL,
+    lastInspected INTEGER NOT NULL,
+    imageUrl TEXT,
+    colonyStrength TEXT NOT NULL,
+    queenStatus TEXT NOT NULL,
+    temperament TEXT NOT NULL,
+    honeyStores TEXT NOT NULL,
+    createdAt INTEGER NOT NULL,
+    updatedAt INTEGER NOT NULL
+);
+
+-- Query to get all hives
+selectAll:
+SELECT * FROM Hive ORDER BY name ASC;
+
+-- Query to get hives by apiary
+selectByApiary:
+SELECT * FROM Hive WHERE apiaryId = ? ORDER BY name ASC;
+
+-- Query to get hive by ID
+selectById:
+SELECT * FROM Hive WHERE id = ?;
+
+-- Insert or replace hive
+insertOrReplace:
+INSERT OR REPLACE INTO Hive VALUES ?;
+
+-- Delete hive
+deleteById:
+DELETE FROM Hive WHERE id = ?;
+
+-- Delete all hives
+deleteAll:
+DELETE FROM Hive;

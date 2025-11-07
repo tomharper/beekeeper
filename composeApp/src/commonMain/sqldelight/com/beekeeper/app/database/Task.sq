@@ -1,0 +1,66 @@
+CREATE TABLE Task (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    taskType TEXT NOT NULL,
+    dueDate INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    priority TEXT NOT NULL,
+    hiveId TEXT,
+    apiaryId TEXT,
+    userId TEXT NOT NULL,
+    recurrenceFrequency TEXT,
+    recurrenceInterval INTEGER,
+    recurrenceEndDate INTEGER,
+    completedDate INTEGER,
+    createdAt INTEGER NOT NULL,
+    updatedAt INTEGER NOT NULL
+);
+
+-- Query to get all tasks
+selectAll:
+SELECT * FROM Task ORDER BY dueDate ASC;
+
+-- Query to get tasks by status
+selectByStatus:
+SELECT * FROM Task WHERE status = ? ORDER BY dueDate ASC;
+
+-- Query to get tasks by hive
+selectByHive:
+SELECT * FROM Task WHERE hiveId = ? ORDER BY dueDate ASC;
+
+-- Query to get tasks by apiary
+selectByApiary:
+SELECT * FROM Task WHERE apiaryId = ? ORDER BY dueDate ASC;
+
+-- Query to get pending tasks
+selectPending:
+SELECT * FROM Task WHERE status = 'PENDING' ORDER BY dueDate ASC;
+
+-- Query to get overdue tasks
+selectOverdue:
+SELECT * FROM Task WHERE status = 'PENDING' AND dueDate < ? ORDER BY dueDate ASC;
+
+-- Query to get task by ID
+selectById:
+SELECT * FROM Task WHERE id = ?;
+
+-- Insert or replace task
+insertOrReplace:
+INSERT OR REPLACE INTO Task VALUES ?;
+
+-- Update task
+update:
+UPDATE Task
+SET title = ?, description = ?, taskType = ?, dueDate = ?, status = ?, priority = ?,
+    hiveId = ?, apiaryId = ?, recurrenceFrequency = ?, recurrenceInterval = ?,
+    recurrenceEndDate = ?, completedDate = ?, updatedAt = ?
+WHERE id = ?;
+
+-- Delete task
+deleteById:
+DELETE FROM Task WHERE id = ?;
+
+-- Delete all tasks
+deleteAll:
+DELETE FROM Task;
