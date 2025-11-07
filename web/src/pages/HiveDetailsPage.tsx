@@ -1,20 +1,47 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MoreVertical, Plus, CheckCircle, Heart, Smile, Star, AlertTriangle, MapPin, FileText } from 'lucide-react';
-import { getHiveById, getApiaryById, getRecommendationsForHive } from '../data/mockData';
-import { ColonyStrength, QueenStatus, Temperament, HoneyStores, RecommendationType } from '../types';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, MoreVertical, Plus, CheckCircle, Heart, Smile, Star, AlertTriangle, MapPin, FileText, Loader } from 'lucide-react';
+import { apiClient } from '../api/client';
+import { Hive, Apiary, Recommendation, ColonyStrength, QueenStatus, Temperament, HoneyStores, RecommendationType } from '../types';
 
 export default function HiveDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const hive = id ? getHiveById(id) : undefined;
-  const apiary = hive ? getApiaryById(hive.apiaryId) : undefined;
-  const recommendations = id ? getRecommendationsForHive(id) : [];
+
+  const [hive, setHive] = useState<Hive | null>(null);
+  const [apiary, setApiary] = useState<Apiary | null>(null);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState(0);
 
-  if (!hive) {
-    return <div className="min-h-screen bg-background-dark flex items-center justify-center text-text-primary">Hive not found</div>;
-  }
+  useEffect(() => {
+    const loadData = async () => {
+      if (!id) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const hiveData = await apiClient.getHive(id);
+        setHive(hiveData as Hive);
+
+        const [apiaryData, recommendationsData] = await Promise.all([
+          apiClient.getApiary((hiveData as Hive).apiaryId),
+          apiClient.getRecommendations(id),
+        ]);
+
+        setApiary(apiaryData as Apiary);
+        setRecommendations(recommendationsData as Recommendation[]);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load hive data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [id]);
 
   const getStatusColor = (value: ColonyStrength | QueenStatus | Temperament | HoneyStores) => {
     if (value === ColonyStrength.STRONG || value === QueenStatus.LAYING || value === Temperament.CALM || value === HoneyStores.FULL || value === HoneyStores.ADEQUATE) {
@@ -42,6 +69,35 @@ export default function HiveDetailsPage() {
   const formatValue = (value: string) => {
     return value.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background-dark flex items-center justify-center">
+        <Loader className="w-8 h-8 text-beekeeper-gold animate-spin" />
+      </div>
+    );
+  }
+
+  if (error || !hive) {
+    return (
+      <div className="min-h-screen bg-background-dark flex items-center justify-center p-4">
+        <div className="bg-status-alert/20 border border-status-alert/50 rounded-xl p-6 max-w-md">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-6 h-6 text-status-alert" />
+            <p className="text-text-primary font-semibold">
+              {error || 'Hive not found'}
+            </p>
+          </div>
+          <button
+            onClick={() => navigate(-1)}
+            className="w-full bg-beekeeper-gold text-black px-4 py-2 rounded-lg font-medium"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background-dark pb-6">
