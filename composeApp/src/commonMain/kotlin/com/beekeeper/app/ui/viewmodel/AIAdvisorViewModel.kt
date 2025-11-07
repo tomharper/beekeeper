@@ -3,6 +3,7 @@ package com.beekeeper.app.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beekeeper.app.data.repository.AIAdvisorRepository
+import com.beekeeper.app.domain.model.Alert
 import com.beekeeper.app.domain.model.ChatMessage
 import com.beekeeper.app.domain.model.MessageRole
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +15,9 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 data class AIAdvisorUiState(
+    val alerts: List<Alert> = emptyList(),
     val messages: List<ChatMessage> = emptyList(),
+    val isLoadingAlerts: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -34,6 +37,31 @@ class AIAdvisorViewModel(
         )
     ))
     val uiState: StateFlow<AIAdvisorUiState> = _uiState.asStateFlow()
+
+    init {
+        loadAlerts()
+    }
+
+    fun loadAlerts() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingAlerts = true)
+
+            repository.getAlerts().fold(
+                onSuccess = { alerts ->
+                    _uiState.value = _uiState.value.copy(
+                        alerts = alerts,
+                        isLoadingAlerts = false
+                    )
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoadingAlerts = false,
+                        error = error.message
+                    )
+                }
+            )
+        }
+    }
 
     fun sendMessage(content: String) {
         if (content.isBlank()) return

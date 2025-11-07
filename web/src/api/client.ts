@@ -372,4 +372,26 @@ export const apiClient = {
     );
     return handleResponse(response);
   },
+
+  // AI Advisor
+  async getAdvisorAlerts() {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/advisor/alerts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async sendChatMessage(message: string) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ message }),
+    });
+    return handleResponse(response);
+  },
 };

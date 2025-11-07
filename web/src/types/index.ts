@@ -68,6 +68,11 @@ export enum AlertType {
   WEATHER_WARNING = 'WEATHER_WARNING',
   HONEY_FLOW = 'HONEY_FLOW',
   GENERAL = 'GENERAL',
+  TASK = 'TASK',
+  PEST = 'PEST',
+  DISEASE = 'DISEASE',
+  HIVE_HEALTH = 'HIVE_HEALTH',
+  SEASONAL = 'SEASONAL',
 }
 
 export enum AlertSeverity {
@@ -335,4 +340,17 @@ export interface Inspection {
 
   createdAt: Date;
   updatedAt: Date;
+}
+
+// AI Chat Types
+export enum MessageRole {
+  USER = 'USER',
+  ASSISTANT = 'ASSISTANT',
+}
+
+export interface ChatMessage {
+  id: string;
+  content: string;
+  role: MessageRole;
+  timestamp: Date;
 }
