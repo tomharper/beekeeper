@@ -1,7 +1,8 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Settings as SettingsIcon, Plus, Home, Calendar, Sparkles, User, AlertTriangle, Loader } from 'lucide-react';
+import { ArrowLeft, Settings as SettingsIcon, Plus, AlertTriangle, Loader } from 'lucide-react';
 import { apiClient } from '../api/client';
+import BottomNav from '../components/BottomNav';
 import { Apiary, Hive, Alert, HiveStatus } from '../types';
 import { formatInspectionDate } from '../utils/dateUtils';
 
@@ -174,30 +175,7 @@ export default function ApiaryDashboardPage() {
         <Plus className="w-6 h-6 text-black" />
       </button>
 
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-beekeeper-green-dark border-t border-beekeeper-green-light">
-        <div className="flex items-center justify-around py-2">
-          <button className="flex flex-col items-center gap-1 px-4 py-2">
-            <Home className="w-6 h-6 text-beekeeper-gold" />
-            <span className="text-xs text-beekeeper-gold">Dashboard</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 px-4 py-2">
-            <Calendar className="w-6 h-6 text-text-secondary" />
-            <span className="text-xs text-text-secondary">Tasks</span>
-          </button>
-          <button
-            onClick={() => navigate('/advisor')}
-            className="flex flex-col items-center gap-1 px-4 py-2"
-          >
-            <Sparkles className="w-6 h-6 text-text-secondary" />
-            <span className="text-xs text-text-secondary">Advisor</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 px-4 py-2">
-            <User className="w-6 h-6 text-text-secondary" />
-            <span className="text-xs text-text-secondary">Profile</span>
-          </button>
-        </div>
-      </div>
+      <BottomNav />
     </div>
   );
 }

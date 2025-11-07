@@ -18,6 +18,15 @@ from .task import (
     TaskPriority,
     RecurrenceFrequency,
 )
+from .inspection import (
+    Inspection,
+    QueenCellStatus,
+    BroodPattern,
+    ColonyTemperament,
+    ColonyPopulation,
+    HealthStatus,
+    ResourceLevel,
+)
 
 __all__ = [
     "Base",
@@ -41,4 +50,11 @@ __all__ = [
     "TaskStatus",
     "TaskPriority",
     "RecurrenceFrequency",
+    "Inspection",
+    "QueenCellStatus",
+    "BroodPattern",
+    "ColonyTemperament",
+    "ColonyPopulation",
+    "HealthStatus",
+    "ResourceLevel",
 ]

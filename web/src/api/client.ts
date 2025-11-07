@@ -258,4 +258,118 @@ export const apiClient = {
     });
     return handleResponse(response);
   },
+
+  // Inspections
+  async getInspections(params?: { hiveId?: string; limit?: number }) {
+    const token = localStorage.getItem('authToken');
+    const queryParams = new URLSearchParams();
+    if (params?.hiveId) queryParams.append('hive_id', params.hiveId);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+    const url = queryParams.toString()
+      ? `${API_BASE_URL}/inspections?${queryParams}`
+      : `${API_BASE_URL}/inspections`;
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async getInspection(id: string) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/inspections/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async getRecentInspections(limit: number = 10) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/inspections/recent?limit=${limit}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async getLatestHiveInspection(hiveId: string) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/inspections/hive/${hiveId}/latest`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async createInspection(data: any) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/inspections`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async updateInspection(id: string, data: any) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/inspections/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async deleteInspection(id: string) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/inspections/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  // Photos
+  async uploadPhoto(file: File, folder: string = 'inspections') {
+    const token = localStorage.getItem('authToken');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/photos/upload?folder=${folder}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    return handleResponse(response);
+  },
+
+  async analyzePhoto(imageUrl: string, analysisType: string = 'general') {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(
+      `${API_BASE_URL}/photos/analyze?image_url=${encodeURIComponent(imageUrl)}&analysis_type=${analysisType}`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return handleResponse(response);
+  },
+
+  async deletePhoto(photoUrl: string) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(
+      `${API_BASE_URL}/photos/delete?photo_url=${encodeURIComponent(photoUrl)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return handleResponse(response);
+  },
 };

@@ -6,12 +6,12 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  Calendar,
   Loader,
   X,
   Check,
 } from 'lucide-react';
 import { apiClient } from '../api/client';
+import BottomNav from '../components/BottomNav';
 import { Task, TaskStatus, TaskPriority, TaskType } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -423,36 +423,7 @@ export default function TasksPage() {
         </div>
       )}
 
-      {/* Bottom Navigation Placeholder */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card-dark border-t border-card-border p-4">
-        <div className="max-w-6xl mx-auto flex justify-around">
-          <button
-            onClick={() => navigate('/')}
-            className="flex flex-col items-center gap-1 text-text-secondary hover:text-text-primary transition"
-          >
-            <Calendar className="w-6 h-6" />
-            <span className="text-xs">Apiaries</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 text-beekeeper-gold">
-            <CheckCircle className="w-6 h-6" />
-            <span className="text-xs">Tasks</span>
-          </button>
-          <button
-            onClick={() => navigate('/advisor')}
-            className="flex flex-col items-center gap-1 text-text-secondary hover:text-text-primary transition"
-          >
-            <AlertCircle className="w-6 h-6" />
-            <span className="text-xs">Advisor</span>
-          </button>
-          <button
-            onClick={() => navigate('/profile')}
-            className="flex flex-col items-center gap-1 text-text-secondary hover:text-text-primary transition"
-          >
-            <Filter className="w-6 h-6" />
-            <span className="text-xs">Profile</span>
-          </button>
-        </div>
-      </div>
+      <BottomNav />
     </div>
   );
 }

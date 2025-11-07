@@ -19,6 +19,12 @@ sealed interface Screen {
     data object Tasks : Screen
 
     @Serializable
+    data object Inspections : Screen
+
+    @Serializable
+    data class InspectionsByHive(val hiveId: String) : Screen
+
+    @Serializable
     data object Map : Screen
 
     @Serializable

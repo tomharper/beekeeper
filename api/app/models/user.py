@@ -13,3 +13,4 @@ class User(Base):
 
     # Relationships
     tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
+    inspections = relationship("Inspection", back_populates="user", cascade="all, delete-orphan")

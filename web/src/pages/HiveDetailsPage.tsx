@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, MoreVertical, Plus, CheckCircle, Heart, Smile, Star, AlertTriangle, MapPin, FileText, Loader } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { Hive, Apiary, Recommendation, ColonyStrength, QueenStatus, Temperament, HoneyStores, RecommendationType } from '../types';
+import BottomNav from '../components/BottomNav';
 
 export default function HiveDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -247,9 +248,11 @@ export default function HiveDetailsPage() {
       )}
 
       {/* FAB */}
-      <button className="fixed bottom-6 right-6 w-14 h-14 bg-beekeeper-gold rounded-full flex items-center justify-center shadow-lg hover:bg-beekeeper-gold-dark transition-colors">
+      <button className="fixed bottom-24 right-6 w-14 h-14 bg-beekeeper-gold rounded-full flex items-center justify-center shadow-lg hover:bg-beekeeper-gold-dark transition-colors">
         <Plus className="w-6 h-6 text-black" />
       </button>
+
+      <BottomNav />
     </div>
   );
 }
