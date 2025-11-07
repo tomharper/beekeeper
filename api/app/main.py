@@ -11,6 +11,7 @@ from app.routers import (
     alerts_router,
     recommendations_router,
     weather_router,
+    tasks_router,
 )
 from app.routers.auth import router as auth_router
 
@@ -60,6 +61,7 @@ app.include_router(hives_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
 app.include_router(recommendations_router, prefix="/api")
 app.include_router(weather_router, prefix="/api")
+app.include_router(tasks_router, prefix="/api")
 
 
 @app.get("/")

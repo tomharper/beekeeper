@@ -4,6 +4,7 @@ import ApiaryListPage from './pages/ApiaryListPage';
 import ApiaryDashboardPage from './pages/ApiaryDashboardPage';
 import HiveDetailsPage from './pages/HiveDetailsPage';
 import AIAdvisorPage from './pages/AIAdvisorPage';
+import TasksPage from './pages/TasksPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
@@ -62,6 +63,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AIAdvisorPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tasks"
+        element={
+          <ProtectedRoute>
+            <TasksPage />
           </ProtectedRoute>
         }
       />

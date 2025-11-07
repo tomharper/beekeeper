@@ -11,6 +11,13 @@ from .hive import (
 from .alert import Alert, AlertType, AlertSeverity
 from .recommendation import Recommendation, RecommendationType, Priority
 from .user import User
+from .task import (
+    Task,
+    TaskType,
+    TaskStatus,
+    TaskPriority,
+    RecurrenceFrequency,
+)
 
 __all__ = [
     "Base",
@@ -29,4 +36,9 @@ __all__ = [
     "RecommendationType",
     "Priority",
     "User",
+    "Task",
+    "TaskType",
+    "TaskStatus",
+    "TaskPriority",
+    "RecurrenceFrequency",
 ]
