@@ -1,21 +1,56 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Settings as SettingsIcon, Plus, Home, Calendar, Sparkles, User, AlertTriangle, X } from 'lucide-react';
-import { getApiaryById, getHivesForApiary, getActiveAlerts } from '../data/mockData';
-import { HiveStatus } from '../types';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Settings as SettingsIcon, Plus, Home, Calendar, Sparkles, User, AlertTriangle, Loader } from 'lucide-react';
+import { apiClient } from '../api/client';
+import { Apiary, Hive, Alert, HiveStatus } from '../types';
 import { formatInspectionDate } from '../utils/dateUtils';
-import { useState } from 'react';
 
 export default function ApiaryDashboardPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const apiary = id ? getApiaryById(id) : undefined;
-  const hives = id ? getHivesForApiary(id) : [];
-  const alerts = getActiveAlerts();
-  const [showAlert, setShowAlert] = useState(alerts.length > 0);
 
-  if (!apiary) {
-    return <div className="min-h-screen bg-background-dark flex items-center justify-center text-text-primary">Apiary not found</div>;
-  }
+  const [apiary, setApiary] = useState<Apiary | null>(null);
+  const [hives, setHives] = useState<Hive[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showAlert, setShowAlert] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      if (!id) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [apiaryData, hivesData, alertsData] = await Promise.all([
+          apiClient.getApiary(id),
+          apiClient.getHives(id),
+          apiClient.getActiveAlerts(),
+        ]);
+
+        setApiary(apiaryData as Apiary);
+        setHives(hivesData as Hive[]);
+        setAlerts(alertsData as Alert[]);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [id]);
+
+  const handleDismissAlert = async (alertId: string) => {
+    try {
+      await apiClient.dismissAlert(alertId);
+      setShowAlert(false);
+    } catch (err) {
+      console.error('Failed to dismiss alert:', err);
+    }
+  };
 
   const getStatusColor = (status: HiveStatus) => {
     switch (status) {
@@ -43,6 +78,35 @@ export default function ApiaryDashboardPage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background-dark flex items-center justify-center">
+        <Loader className="w-8 h-8 text-beekeeper-gold animate-spin" />
+      </div>
+    );
+  }
+
+  if (error || !apiary) {
+    return (
+      <div className="min-h-screen bg-background-dark flex items-center justify-center p-4">
+        <div className="bg-status-alert/20 border border-status-alert/50 rounded-xl p-6 max-w-md">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-6 h-6 text-status-alert" />
+            <p className="text-text-primary font-semibold">
+              {error || 'Apiary not found'}
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/')}
+            className="w-full bg-beekeeper-gold text-black px-4 py-2 rounded-lg font-medium"
+          >
+            Back to Apiaries
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background-dark pb-20">
       {/* Top Bar */}
@@ -67,7 +131,7 @@ export default function ApiaryDashboardPage() {
                 <h3 className="font-semibold text-text-primary mb-1">{alerts[0].title}</h3>
                 <p className="text-sm text-text-secondary mb-3">{alerts[0].message}</p>
                 <button
-                  onClick={() => setShowAlert(false)}
+                  onClick={() => handleDismissAlert(alerts[0].id)}
                   className="w-full bg-beekeeper-gold/30 text-beekeeper-gold py-2 px-4 rounded-lg font-medium"
                 >
                   Dismiss
@@ -97,7 +161,7 @@ export default function ApiaryDashboardPage() {
                   {getStatusText(hive.status)}
                 </div>
                 <p className="text-xs text-text-secondary">
-                  Inspected: {formatInspectionDate(hive.lastInspected)}
+                  Inspected: {formatInspectionDate(new Date(hive.lastInspected))}
                 </p>
               </div>
             </Link>

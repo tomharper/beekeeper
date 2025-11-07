@@ -1,9 +1,31 @@
 import { Link } from 'react-router-dom';
-import { Menu, RefreshCw, Plus, CheckCircle, AlertTriangle, XCircle, ChevronRight, Settings } from 'lucide-react';
-import { apiaries } from '../data/mockData';
-import { ApiaryStatus } from '../types';
+import { useState, useEffect } from 'react';
+import { Menu, RefreshCw, Plus, CheckCircle, AlertTriangle, XCircle, ChevronRight, Settings, Loader } from 'lucide-react';
+import { apiClient } from '../api/client';
+import { Apiary, ApiaryStatus } from '../types';
 
 export default function ApiaryListPage() {
+  const [apiaries, setApiaries] = useState<Apiary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadApiaries = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await apiClient.getApiaries();
+      setApiaries(data as Apiary[]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load apiaries');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadApiaries();
+  }, []);
+
   const getStatusIcon = (status: ApiaryStatus) => {
     switch (status) {
       case ApiaryStatus.HEALTHY:
@@ -34,8 +56,8 @@ export default function ApiaryListPage() {
           <Menu className="w-6 h-6 text-text-primary" />
         </button>
         <h1 className="text-xl font-bold text-text-primary">My Apiaries</h1>
-        <button className="p-2">
-          <RefreshCw className="w-6 h-6 text-text-primary" />
+        <button className="p-2" onClick={loadApiaries} disabled={loading}>
+          <RefreshCw className={`w-6 h-6 text-text-primary ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
@@ -43,39 +65,64 @@ export default function ApiaryListPage() {
       <div className="p-4 space-y-4">
         <h2 className="text-sm text-text-secondary mb-2">Apiary Sites Overview</h2>
 
-        {/* Apiary Cards */}
-        <div className="space-y-3">
-          {apiaries.map((apiary) => (
-            <Link
-              key={apiary.id}
-              to={`/apiary/${apiary.id}`}
-              className="block bg-card-background rounded-xl p-4 hover:bg-opacity-90 transition-all"
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <Loader className="w-8 h-8 text-beekeeper-gold animate-spin" />
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-status-alert/20 border border-status-alert/50 rounded-xl p-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-status-alert" />
+              <p className="text-text-primary">{error}</p>
+            </div>
+            <button
+              onClick={loadApiaries}
+              className="mt-3 bg-beekeeper-gold text-black px-4 py-2 rounded-lg font-medium"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-text-primary mb-1">
-                    {apiary.name}
-                  </h3>
-                  <p className="text-text-secondary text-sm mb-2">{apiary.location}</p>
-                  <div className="flex items-center text-text-secondary text-sm">
-                    <Settings className="w-4 h-4 mr-1" />
-                    <span>{apiary.hiveCount} Hives</span>
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {/* Apiary Cards */}
+        {!loading && !error && (
+          <div className="space-y-3">
+            {apiaries.map((apiary) => (
+              <Link
+                key={apiary.id}
+                to={`/apiary/${apiary.id}`}
+                className="block bg-card-background rounded-xl p-4 hover:bg-opacity-90 transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-text-primary mb-1">
+                      {apiary.name}
+                    </h3>
+                    <p className="text-text-secondary text-sm mb-2">{apiary.location}</p>
+                    <div className="flex items-center text-text-secondary text-sm">
+                      <Settings className="w-4 h-4 mr-1" />
+                      <span>{apiary.hiveCount} Hives</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {/* Status Indicator */}
+                    <div className={`w-8 h-8 rounded-full ${getStatusBgColor(apiary.status)} flex items-center justify-center`}>
+                      {getStatusIcon(apiary.status)}
+                    </div>
+
+                    {/* Arrow */}
+                    <ChevronRight className="w-6 h-6 text-text-secondary" />
                   </div>
                 </div>
-
-                <div className="flex items-center gap-3">
-                  {/* Status Indicator */}
-                  <div className={`w-8 h-8 rounded-full ${getStatusBgColor(apiary.status)} flex items-center justify-center`}>
-                    {getStatusIcon(apiary.status)}
-                  </div>
-
-                  {/* Arrow */}
-                  <ChevronRight className="w-6 h-6 text-text-secondary" />
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* FAB */}

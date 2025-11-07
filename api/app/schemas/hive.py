@@ -10,9 +10,17 @@ from app.models import (
 )
 
 
+def to_camel(string: str) -> str:
+    """Convert snake_case to camelCase"""
+    words = string.split('_')
+    return words[0] + ''.join(word.capitalize() for word in words[1:])
+
+
 class HiveBase(BaseModel):
     name: str
     apiary_id: str
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
 class HiveCreate(HiveBase):
@@ -34,6 +42,8 @@ class HiveUpdate(BaseModel):
     temperament: Optional[Temperament] = None
     honey_stores: Optional[HoneyStores] = None
 
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
 
 class HiveResponse(HiveBase):
     id: str
@@ -45,4 +55,4 @@ class HiveResponse(HiveBase):
     temperament: Temperament
     honey_stores: HoneyStores
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, alias_generator=to_camel, populate_by_name=True)

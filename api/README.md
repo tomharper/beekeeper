@@ -88,8 +88,8 @@ Edit `.env`:
 DATABASE_URL=sqlite:///./beekeeper.db
 DEBUG=True
 API_HOST=0.0.0.0
-API_PORT=8000
-CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+API_PORT=2020
+CORS_ORIGINS=http://localhost:2000
 ```
 
 ### Running the API
@@ -97,19 +97,19 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 #### Development mode
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 2020
 ```
 
 Or with poetry:
 
 ```bash
-poetry run uvicorn app.main:app --reload
+poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 2020
 ```
 
 The API will be available at:
-- API: http://localhost:8000
-- Interactive docs: http://localhost:8000/docs
-- Alternative docs: http://localhost:8000/redoc
+- API: http://localhost:2020
+- Interactive docs: http://localhost:2020/docs
+- Alternative docs: http://localhost:2020/redoc
 
 ### Mock Data
 
@@ -166,11 +166,11 @@ For production deployment:
 3. Use a production ASGI server like Gunicorn with Uvicorn workers:
 
 ```bash
-gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:2020
 ```
 
 ## API Documentation
 
 Once running, visit:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- Swagger UI: http://localhost:2020/docs
+- ReDoc: http://localhost:2020/redoc
