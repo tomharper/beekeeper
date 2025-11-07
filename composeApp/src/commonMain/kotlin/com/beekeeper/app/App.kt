@@ -1,6 +1,7 @@
 package com.beekeeper.app
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -10,7 +11,11 @@ import com.beekeeper.app.ui.screens.advisor.AIAdvisorScreen
 import com.beekeeper.app.ui.screens.apiary.ApiaryListScreen
 import com.beekeeper.app.ui.screens.dashboard.ApiaryDashboardScreen
 import com.beekeeper.app.ui.screens.hive.HiveDetailsScreen
+import com.beekeeper.app.ui.screens.tasks.TasksScreen
+import com.beekeeper.app.ui.screens.inspections.InspectionsScreen
+import com.beekeeper.app.ui.viewmodel.InspectionsViewModel
 import com.beekeeper.app.ui.theme.BeekeeperTheme
+import org.koin.compose.koinInject
 
 @Composable
 fun App() {
@@ -57,6 +62,41 @@ fun App() {
 
             composable<Screen.AIAdvisor> {
                 AIAdvisorScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable<Screen.Tasks> {
+                TasksScreen(
+                    viewModel = koinInject(),
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable<Screen.Inspections> {
+                InspectionsScreen(
+                    viewModel = koinInject(),
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable<Screen.InspectionsByHive> { backStackEntry ->
+                val args = backStackEntry.toRoute<Screen.InspectionsByHive>()
+                val viewModel: InspectionsViewModel = koinInject()
+
+                // Load inspections for specific hive
+                LaunchedEffect(args.hiveId) {
+                    viewModel.loadInspections(args.hiveId)
+                }
+
+                InspectionsScreen(
+                    viewModel = viewModel,
                     onBackClick = {
                         navController.popBackStack()
                     }
