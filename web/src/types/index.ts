@@ -229,3 +229,110 @@ export interface Task {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Inspection Types
+export enum QueenCellStatus {
+  NONE = 'NONE',
+  QUEEN_CUPS = 'QUEEN_CUPS',
+  CHARGED_CELLS = 'CHARGED_CELLS',
+  CAPPED_CELLS = 'CAPPED_CELLS',
+  SUPERSEDURE_CELLS = 'SUPERSEDURE_CELLS',
+  SWARM_CELLS = 'SWARM_CELLS',
+}
+
+export enum BroodPattern {
+  EXCELLENT = 'EXCELLENT',
+  GOOD = 'GOOD',
+  SPOTTY = 'SPOTTY',
+  POOR = 'POOR',
+  NONE = 'NONE',
+}
+
+export enum ColonyTemperament {
+  VERY_CALM = 'VERY_CALM',
+  CALM = 'CALM',
+  MODERATE = 'MODERATE',
+  DEFENSIVE = 'DEFENSIVE',
+  AGGRESSIVE = 'AGGRESSIVE',
+  VERY_AGGRESSIVE = 'VERY_AGGRESSIVE',
+}
+
+export enum ColonyPopulation {
+  VERY_WEAK = 'VERY_WEAK',
+  WEAK = 'WEAK',
+  MEDIUM = 'MEDIUM',
+  STRONG = 'STRONG',
+  VERY_STRONG = 'VERY_STRONG',
+}
+
+export enum InspectionHealthStatus {
+  EXCELLENT = 'EXCELLENT',
+  HEALTHY = 'HEALTHY',
+  CONCERNING = 'CONCERNING',
+  NEEDS_ATTENTION = 'NEEDS_ATTENTION',
+  CRITICAL = 'CRITICAL',
+}
+
+export enum ResourceLevel {
+  NONE = 'NONE',
+  VERY_LOW = 'VERY_LOW',
+  LOW = 'LOW',
+  ADEQUATE = 'ADEQUATE',
+  GOOD = 'GOOD',
+  EXCELLENT = 'EXCELLENT',
+}
+
+export interface Inspection {
+  id: string;
+  hiveId: string;
+  userId: string;
+  inspectionDate: Date;
+  durationMinutes?: number;
+
+  // Weather
+  weatherTemp?: number;
+  weatherConditions?: string;
+
+  // Queen observations
+  queenSeen: boolean;
+  queenMarked: boolean;
+  queenCells: QueenCellStatus;
+
+  // Brood observations
+  broodPattern: BroodPattern;
+  eggsSeen: boolean;
+  larvaeSeen: boolean;
+  cappedBroodSeen: boolean;
+  estimatedBroodFrames?: number;
+
+  // Colony observations
+  temperament: ColonyTemperament;
+  population: ColonyPopulation;
+  estimatedFramesCovered?: number;
+
+  // Health observations
+  healthStatus: InspectionHealthStatus;
+  varroaMitesDetected: boolean;
+  pestsNotes: string;
+  diseaseSigns: string;
+
+  // Resources
+  honeyStores: ResourceLevel;
+  pollenStores: ResourceLevel;
+  cappedHoney: boolean;
+
+  // Actions taken
+  actionsTaken: string;
+  feedingDone: boolean;
+  feedingNotes: string;
+  treatmentApplied: boolean;
+  treatmentNotes: string;
+
+  // Media and notes
+  photos: string;
+  notes: string;
+  nextInspectionDate?: Date;
+
+  createdAt: Date;
+  updatedAt: Date;
+}
