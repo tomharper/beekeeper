@@ -1,10 +1,10 @@
 from enum import Enum as PyEnum
 from datetime import datetime
-from sqlalchemy import String, DateTime, ForeignKey, Enum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import Optional, List
+from typing import Optional
 
-from .base import Base, TimestampMixin
+from beanie import Document
+
+from .base import TimestampMixin
 
 
 class HiveStatus(str, PyEnum):
@@ -40,34 +40,18 @@ class HoneyStores(str, PyEnum):
     EMPTY = "EMPTY"
 
 
-class Hive(Base, TimestampMixin):
-    __tablename__ = "hives"
+class Hive(Document, TimestampMixin):
+    id: str  # type: ignore[assignment]
+    name: str
+    apiary_id: str
+    status: HiveStatus = HiveStatus.STRONG
+    last_inspected: datetime
+    image_url: Optional[str] = None
+    colony_strength: ColonyStrength = ColonyStrength.MODERATE
+    queen_status: QueenStatus = QueenStatus.UNKNOWN
+    temperament: Temperament = Temperament.MODERATE
+    honey_stores: HoneyStores = HoneyStores.ADEQUATE
 
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    apiary_id: Mapped[str] = mapped_column(
-        String, ForeignKey("apiaries.id"), nullable=False
-    )
-    status: Mapped[HiveStatus] = mapped_column(
-        Enum(HiveStatus), default=HiveStatus.STRONG, nullable=False
-    )
-    last_inspected: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    colony_strength: Mapped[ColonyStrength] = mapped_column(
-        Enum(ColonyStrength), default=ColonyStrength.MODERATE, nullable=False
-    )
-    queen_status: Mapped[QueenStatus] = mapped_column(
-        Enum(QueenStatus), default=QueenStatus.UNKNOWN, nullable=False
-    )
-    temperament: Mapped[Temperament] = mapped_column(
-        Enum(Temperament), default=Temperament.MODERATE, nullable=False
-    )
-    honey_stores: Mapped[HoneyStores] = mapped_column(
-        Enum(HoneyStores), default=HoneyStores.ADEQUATE, nullable=False
-    )
-
-    # Relationships
-    apiary: Mapped["Apiary"] = relationship("Apiary", back_populates="hives")
-    recommendations: Mapped[List["Recommendation"]] = relationship(
-        "Recommendation", back_populates="hive", cascade="all, delete-orphan"
-    )
+    class Settings:
+        name = "hives"
+        indexes = ["apiary_id"]

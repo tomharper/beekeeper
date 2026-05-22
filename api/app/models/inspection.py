@@ -1,10 +1,11 @@
 from enum import Enum as PyEnum
 from datetime import datetime
-from sqlalchemy import String, DateTime, ForeignKey, Enum, Integer, Float, Boolean, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional
 
-from .base import Base, TimestampMixin
+from beanie import Document
+from pydantic import Field
+
+from .base import TimestampMixin, utcnow
 
 
 class QueenCellStatus(str, PyEnum):
@@ -58,79 +59,65 @@ class ResourceLevel(str, PyEnum):
     EXCELLENT = "EXCELLENT"
 
 
-class Inspection(Base, TimestampMixin):
-    __tablename__ = "inspections"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    hive_id: Mapped[str] = mapped_column(
-        String, ForeignKey("hives.id", ondelete="CASCADE"), nullable=False
-    )
-    user_id: Mapped[str] = mapped_column(
-        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
+class Inspection(Document, TimestampMixin):
+    # Identity — keep as plain str (UUID-style) to match existing schema/routers
+    id: str  # type: ignore[assignment]
+    hive_id: str
+    user_id: str
 
     # Basic info
-    inspection_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    duration_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    inspection_date: datetime
+    duration_minutes: Optional[int] = None
 
     # Weather (simple fields for now)
-    weather_temp: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    weather_conditions: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    weather_temp: Optional[float] = None
+    weather_conditions: Optional[str] = None
 
     # Queen observations
-    queen_seen: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    queen_marked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    queen_cells: Mapped[QueenCellStatus] = mapped_column(
-        Enum(QueenCellStatus), default=QueenCellStatus.NONE, nullable=False
-    )
+    queen_seen: bool = False
+    queen_marked: bool = False
+    queen_cells: QueenCellStatus = QueenCellStatus.NONE
 
     # Brood observations
-    brood_pattern: Mapped[BroodPattern] = mapped_column(
-        Enum(BroodPattern), default=BroodPattern.GOOD, nullable=False
-    )
-    eggs_seen: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    larvae_seen: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    capped_brood_seen: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    estimated_brood_frames: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    brood_pattern: BroodPattern = BroodPattern.GOOD
+    eggs_seen: bool = False
+    larvae_seen: bool = False
+    capped_brood_seen: bool = False
+    estimated_brood_frames: Optional[int] = None
 
     # Colony observations
-    temperament: Mapped[ColonyTemperament] = mapped_column(
-        Enum(ColonyTemperament), default=ColonyTemperament.CALM, nullable=False
-    )
-    population: Mapped[ColonyPopulation] = mapped_column(
-        Enum(ColonyPopulation), default=ColonyPopulation.MEDIUM, nullable=False
-    )
-    estimated_frames_covered: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    temperament: ColonyTemperament = ColonyTemperament.CALM
+    population: ColonyPopulation = ColonyPopulation.MEDIUM
+    estimated_frames_covered: Optional[int] = None
 
     # Health observations
-    health_status: Mapped[HealthStatus] = mapped_column(
-        Enum(HealthStatus), default=HealthStatus.HEALTHY, nullable=False
-    )
-    varroa_mites_detected: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    pests_notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
-    disease_signs: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    health_status: HealthStatus = HealthStatus.HEALTHY
+    varroa_mites_detected: bool = False
+    pests_notes: str = ""
+    disease_signs: str = ""
 
     # Resources
-    honey_stores: Mapped[ResourceLevel] = mapped_column(
-        Enum(ResourceLevel), default=ResourceLevel.ADEQUATE, nullable=False
-    )
-    pollen_stores: Mapped[ResourceLevel] = mapped_column(
-        Enum(ResourceLevel), default=ResourceLevel.ADEQUATE, nullable=False
-    )
-    capped_honey: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    honey_stores: ResourceLevel = ResourceLevel.ADEQUATE
+    pollen_stores: ResourceLevel = ResourceLevel.ADEQUATE
+    capped_honey: bool = False
 
     # Actions taken
-    actions_taken: Mapped[str] = mapped_column(Text, default="", nullable=False)  # JSON or comma-separated
-    feeding_done: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    feeding_notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
-    treatment_applied: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    treatment_notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    actions_taken: str = ""
+    feeding_done: bool = False
+    feeding_notes: str = ""
+    treatment_applied: bool = False
+    treatment_notes: str = ""
 
     # Media and notes
-    photos: Mapped[str] = mapped_column(Text, default="", nullable=False)  # JSON array of URLs
-    notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
-    next_inspection_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    photos: list[str] = Field(default_factory=list)
+    notes: str = ""
+    next_inspection_date: Optional[datetime] = None
 
-    # Relationships
-    hive: Mapped["Hive"] = relationship("Hive", foreign_keys=[hive_id])
-    user: Mapped["User"] = relationship("User", back_populates="inspections")
+    class Settings:
+        name = "inspections"
+        indexes = [
+            "hive_id",
+            "user_id",
+            [("hive_id", 1), ("inspection_date", -1)],
+            [("user_id", 1), ("inspection_date", -1)],
+        ]

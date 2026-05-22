@@ -1,8 +1,5 @@
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status, Form
-from sqlalchemy.orm import Session
-from typing import Optional
 
-from app.database import get_db
 from app.models import User
 from app.routers.auth import get_current_user
 from app.services.bunny_storage_service import bunny_storage

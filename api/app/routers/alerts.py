@@ -1,8 +1,6 @@
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, status
 from typing import List
 
-from app.database import get_db
 from app.services import AlertService
 from app.schemas import AlertCreate, AlertUpdate, AlertResponse
 
@@ -10,38 +8,38 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 
 @router.get("", response_model=List[AlertResponse])
-def get_alerts(db: Session = Depends(get_db)):
+async def get_alerts():
     """Get all alerts"""
-    service = AlertService(db)
-    return service.get_all_alerts()
+    service = AlertService()
+    return await service.get_all_alerts()
 
 
 @router.get("/active", response_model=List[AlertResponse])
-def get_active_alerts(db: Session = Depends(get_db)):
+async def get_active_alerts():
     """Get all active (non-dismissed) alerts"""
-    service = AlertService(db)
-    return service.get_active_alerts()
+    service = AlertService()
+    return await service.get_active_alerts()
 
 
 @router.get("/{alert_id}", response_model=AlertResponse)
-def get_alert(alert_id: str, db: Session = Depends(get_db)):
+async def get_alert(alert_id: str):
     """Get a specific alert by ID"""
-    service = AlertService(db)
-    return service.get_alert(alert_id)
+    service = AlertService()
+    return await service.get_alert(alert_id)
 
 
 @router.post("", response_model=AlertResponse, status_code=status.HTTP_201_CREATED)
-def create_alert(alert: AlertCreate, db: Session = Depends(get_db)):
+async def create_alert(alert: AlertCreate):
     """Create a new alert"""
     import uuid
 
     alert_id = str(uuid.uuid4())
-    service = AlertService(db)
-    return service.create_alert(alert, alert_id)
+    service = AlertService()
+    return await service.create_alert(alert, alert_id)
 
 
 @router.patch("/{alert_id}", response_model=AlertResponse)
-def update_alert(alert_id: str, alert: AlertUpdate, db: Session = Depends(get_db)):
+async def update_alert(alert_id: str, alert: AlertUpdate):
     """Update an alert (e.g., dismiss it)"""
-    service = AlertService(db)
-    return service.update_alert(alert_id, alert)
+    service = AlertService()
+    return await service.update_alert(alert_id, alert)

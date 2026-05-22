@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from typing import Optional
 from app.models import (
@@ -62,7 +62,7 @@ class InspectionBase(BaseModel):
     treatment_notes: str = ""
 
     # Media and notes
-    photos: str = ""  # JSON array string or comma-separated URLs
+    photos: list[str] = Field(default_factory=list)
     notes: str = ""
     next_inspection_date: Optional[datetime] = None
 
@@ -103,7 +103,7 @@ class InspectionUpdate(BaseModel):
     feeding_notes: Optional[str] = None
     treatment_applied: Optional[bool] = None
     treatment_notes: Optional[str] = None
-    photos: Optional[str] = None
+    photos: Optional[list[str]] = None
     notes: Optional[str] = None
     next_inspection_date: Optional[datetime] = None
 

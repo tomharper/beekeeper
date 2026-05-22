@@ -1,27 +1,31 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from typing import Generator
 import os
-
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./beekeeper.db")
-
-engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
-)
-
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from motor.motor_asyncio import AsyncIOMotorClient
+from beanie import init_beanie
 
 
-def get_db() -> Generator[Session, None, None]:
-    """Dependency to get database session"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+MONGODB_DB = os.getenv("MONGODB_DB", "beekeeper")
+
+_client: AsyncIOMotorClient | None = None
 
 
-def init_db():
-    """Initialize database tables"""
-    from app.models import Base
-    Base.metadata.create_all(bind=engine)
+def get_client() -> AsyncIOMotorClient:
+    global _client
+    if _client is None:
+        _client = AsyncIOMotorClient(MONGODB_URI)
+    return _client
+
+
+async def init_db() -> None:
+    """Initialise Beanie with all document models. Call from FastAPI lifespan."""
+    from app.models import DOCUMENT_MODELS
+
+    client = get_client()
+    await init_beanie(database=client[MONGODB_DB], document_models=DOCUMENT_MODELS)
+
+
+async def close_db() -> None:
+    global _client
+    if _client is not None:
+        _client.close()
+        _client = None

@@ -1,18 +1,13 @@
-from datetime import datetime
-from sqlalchemy import DateTime
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from datetime import datetime, timezone
+from pydantic import BaseModel, Field
 
 
-class Base(DeclarativeBase):
-    """Base class for all database models"""
-    pass
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
-class TimestampMixin:
-    """Mixin to add created_at and updated_at timestamps"""
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
-    )
+class TimestampMixin(BaseModel):
+    """Mixin to add created_at and updated_at timestamps to a Beanie Document."""
+
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)

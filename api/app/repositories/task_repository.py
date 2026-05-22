@@ -1,129 +1,96 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+from beanie.operators import In, Or, Set
+
 from app.models import Task, TaskStatus
 
 
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 class TaskRepository:
-    def __init__(self, db: Session):
-        self.db = db
+    async def get_all(self) -> List[Task]:
+        return await Task.find_all().to_list()
 
-    def get_all(self) -> List[Task]:
-        return self.db.query(Task).all()
+    async def get_by_id(self, task_id: str) -> Optional[Task]:
+        return await Task.get(task_id)
 
-    def get_by_id(self, task_id: str) -> Optional[Task]:
-        return self.db.query(Task).filter(Task.id == task_id).first()
+    async def get_by_user_id(self, user_id: str) -> List[Task]:
+        return await Task.find(Task.user_id == user_id).to_list()
 
-    def get_by_user_id(self, user_id: str) -> List[Task]:
-        """Get all tasks for a specific user"""
-        return self.db.query(Task).filter(Task.user_id == user_id).all()
+    async def get_by_hive_id(self, hive_id: str) -> List[Task]:
+        return await Task.find(Task.hive_id == hive_id).to_list()
 
-    def get_by_hive_id(self, hive_id: str) -> List[Task]:
-        """Get all tasks for a specific hive"""
-        return self.db.query(Task).filter(Task.hive_id == hive_id).all()
+    async def get_by_apiary_id(self, apiary_id: str) -> List[Task]:
+        return await Task.find(Task.apiary_id == apiary_id).to_list()
 
-    def get_by_apiary_id(self, apiary_id: str) -> List[Task]:
-        """Get all tasks for a specific apiary"""
-        return self.db.query(Task).filter(Task.apiary_id == apiary_id).all()
+    async def get_by_status(self, user_id: str, status: TaskStatus) -> List[Task]:
+        return await Task.find(
+            Task.user_id == user_id,
+            Task.status == status,
+        ).to_list()
 
-    def get_by_status(self, user_id: str, status: TaskStatus) -> List[Task]:
-        """Get all tasks for a user with a specific status"""
+    async def get_pending_and_overdue(self, user_id: str) -> List[Task]:
         return (
-            self.db.query(Task)
-            .filter(and_(Task.user_id == user_id, Task.status == status))
-            .all()
-        )
-
-    def get_pending_and_overdue(self, user_id: str) -> List[Task]:
-        """Get all pending and overdue tasks for a user"""
-        return (
-            self.db.query(Task)
-            .filter(
-                and_(
-                    Task.user_id == user_id,
-                    or_(
-                        Task.status == TaskStatus.PENDING,
-                        Task.status == TaskStatus.OVERDUE,
-                        Task.status == TaskStatus.IN_PROGRESS,
-                    ),
-                )
+            await Task.find(
+                Task.user_id == user_id,
+                In(
+                    Task.status,
+                    [TaskStatus.PENDING, TaskStatus.OVERDUE, TaskStatus.IN_PROGRESS],
+                ),
             )
-            .order_by(Task.due_date)
-            .all()
+            .sort(Task.due_date)
+            .to_list()
         )
 
-    def get_upcoming(self, user_id: str, days: int = 7) -> List[Task]:
-        """Get upcoming tasks in the next X days"""
-        from datetime import timedelta
-
-        end_date = datetime.utcnow() + timedelta(days=days)
+    async def get_upcoming(self, user_id: str, days: int = 7) -> List[Task]:
+        end_date = _utcnow() + timedelta(days=days)
         return (
-            self.db.query(Task)
-            .filter(
-                and_(
-                    Task.user_id == user_id,
-                    Task.due_date <= end_date,
-                    or_(
-                        Task.status == TaskStatus.PENDING,
-                        Task.status == TaskStatus.IN_PROGRESS,
-                    ),
-                )
+            await Task.find(
+                Task.user_id == user_id,
+                Task.due_date <= end_date,
+                In(Task.status, [TaskStatus.PENDING, TaskStatus.IN_PROGRESS]),
             )
-            .order_by(Task.due_date)
-            .all()
+            .sort(Task.due_date)
+            .to_list()
         )
 
-    def get_overdue(self, user_id: str) -> List[Task]:
-        """Get all overdue tasks for a user"""
-        now = datetime.utcnow()
+    async def get_overdue(self, user_id: str) -> List[Task]:
+        now = _utcnow()
         return (
-            self.db.query(Task)
-            .filter(
-                and_(
-                    Task.user_id == user_id,
-                    Task.due_date < now,
-                    Task.status.in_([TaskStatus.PENDING, TaskStatus.IN_PROGRESS]),
-                )
+            await Task.find(
+                Task.user_id == user_id,
+                Task.due_date < now,
+                In(Task.status, [TaskStatus.PENDING, TaskStatus.IN_PROGRESS]),
             )
-            .order_by(Task.due_date)
-            .all()
+            .sort(Task.due_date)
+            .to_list()
         )
 
-    def create(self, task: Task) -> Task:
-        self.db.add(task)
-        self.db.commit()
-        self.db.refresh(task)
+    async def create(self, task: Task) -> Task:
+        await task.insert()
         return task
 
-    def update(self, task: Task) -> Task:
-        self.db.commit()
-        self.db.refresh(task)
+    async def update(self, task: Task) -> Task:
+        await task.save()
         return task
 
-    def delete(self, task: Task) -> None:
-        self.db.delete(task)
-        self.db.commit()
+    async def delete(self, task: Task) -> None:
+        await task.delete()
 
-    def mark_as_completed(self, task: Task) -> Task:
-        """Mark a task as completed with the completion timestamp"""
+    async def mark_as_completed(self, task: Task) -> Task:
         task.status = TaskStatus.COMPLETED
-        task.completed_date = datetime.utcnow()
-        return self.update(task)
+        task.completed_date = _utcnow()
+        return await self.update(task)
 
-    def mark_overdue_tasks(self, user_id: str) -> int:
-        """Mark all past-due pending tasks as overdue"""
-        now = datetime.utcnow()
-        result = (
-            self.db.query(Task)
-            .filter(
-                and_(
-                    Task.user_id == user_id,
-                    Task.due_date < now,
-                    Task.status == TaskStatus.PENDING,
-                )
-            )
-            .update({Task.status: TaskStatus.OVERDUE})
-        )
-        self.db.commit()
-        return result
+    async def mark_overdue_tasks(self, user_id: str) -> int:
+        """Mark all past-due pending tasks as overdue. Returns modified count."""
+        now = _utcnow()
+        result = await Task.find(
+            Task.user_id == user_id,
+            Task.due_date < now,
+            Task.status == TaskStatus.PENDING,
+        ).update(Set({Task.status: TaskStatus.OVERDUE}))
+        return result.modified_count if result else 0

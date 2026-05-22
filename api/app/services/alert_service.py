@@ -1,4 +1,3 @@
-from sqlalchemy.orm import Session
 from typing import List
 from fastapi import HTTPException, status
 
@@ -8,29 +7,26 @@ from app.schemas import AlertCreate, AlertUpdate, AlertResponse
 
 
 class AlertService:
-    def __init__(self, db: Session):
-        self.repository = AlertRepository(db)
+    def __init__(self):
+        self.repository = AlertRepository()
 
-    def get_all_alerts(self) -> List[AlertResponse]:
-        alerts = self.repository.get_all()
-        return [self._to_response(alert) for alert in alerts]
+    async def get_all_alerts(self) -> List[AlertResponse]:
+        alerts = await self.repository.get_all()
+        return [AlertResponse.model_validate(alert) for alert in alerts]
 
-    def get_active_alerts(self) -> List[AlertResponse]:
-        alerts = self.repository.get_active()
-        return [self._to_response(alert) for alert in alerts]
+    async def get_active_alerts(self) -> List[AlertResponse]:
+        alerts = await self.repository.get_active()
+        return [AlertResponse.model_validate(alert) for alert in alerts]
 
-    def get_alert(self, alert_id: str) -> AlertResponse:
-        alert = self.repository.get_by_id(alert_id)
+    async def get_alert(self, alert_id: str) -> AlertResponse:
+        alert = await self.repository.get_by_id(alert_id)
         if not alert:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found"
             )
-        return self._to_response(alert)
+        return AlertResponse.model_validate(alert)
 
-    def create_alert(self, alert_data: AlertCreate, alert_id: str) -> AlertResponse:
-        hive_ids_str = (
-            ",".join(alert_data.hive_ids) if alert_data.hive_ids else None
-        )
+    async def create_alert(self, alert_data: AlertCreate, alert_id: str) -> AlertResponse:
         alert = Alert(
             id=alert_id,
             type=alert_data.type,
@@ -38,14 +34,14 @@ class AlertService:
             message=alert_data.message,
             severity=alert_data.severity,
             timestamp=alert_data.timestamp,
-            hive_ids=hive_ids_str,
+            hive_ids=alert_data.hive_ids or [],
             dismissed=False,
         )
-        created_alert = self.repository.create(alert)
-        return self._to_response(created_alert)
+        created_alert = await self.repository.create(alert)
+        return AlertResponse.model_validate(created_alert)
 
-    def update_alert(self, alert_id: str, alert_data: AlertUpdate) -> AlertResponse:
-        alert = self.repository.get_by_id(alert_id)
+    async def update_alert(self, alert_id: str, alert_data: AlertUpdate) -> AlertResponse:
+        alert = await self.repository.get_by_id(alert_id)
         if not alert:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found"
@@ -55,18 +51,5 @@ class AlertService:
         for key, value in update_data.items():
             setattr(alert, key, value)
 
-        updated_alert = self.repository.update(alert)
-        return self._to_response(updated_alert)
-
-    def _to_response(self, alert: Alert) -> AlertResponse:
-        hive_ids = alert.hive_ids.split(",") if alert.hive_ids else None
-        return AlertResponse(
-            id=alert.id,
-            type=alert.type,
-            title=alert.title,
-            message=alert.message,
-            severity=alert.severity,
-            timestamp=alert.timestamp,
-            hive_ids=hive_ids,
-            dismissed=alert.dismissed,
-        )
+        updated_alert = await self.repository.update(alert)
+        return AlertResponse.model_validate(updated_alert)

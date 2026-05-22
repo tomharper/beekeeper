@@ -1,10 +1,10 @@
 from enum import Enum as PyEnum
 from datetime import datetime
-from sqlalchemy import String, DateTime, ForeignKey, Enum, Integer, Float, Boolean, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional
 
-from .base import Base, TimestampMixin
+from beanie import Document
+
+from .base import TimestampMixin
 
 
 class TaskType(str, PyEnum):
@@ -77,55 +77,43 @@ class RecurrenceFrequency(str, PyEnum):
     YEARLY = "YEARLY"
 
 
-class Task(Base, TimestampMixin):
-    __tablename__ = "tasks"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    title: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
-    task_type: Mapped[TaskType] = mapped_column(
-        Enum(TaskType), default=TaskType.GENERAL, nullable=False
-    )
+class Task(Document, TimestampMixin):
+    id: str  # type: ignore[assignment]
+    title: str
+    description: str = ""
+    task_type: TaskType = TaskType.GENERAL
 
     # Scheduling
-    due_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    reminder_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    due_date: datetime
+    reminder_date: Optional[datetime] = None
 
-    # Recurrence (stored as JSON-like fields)
-    recurrence_frequency: Mapped[Optional[RecurrenceFrequency]] = mapped_column(
-        Enum(RecurrenceFrequency), nullable=True
-    )
-    recurrence_interval: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=1)
-    recurrence_end_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    recurrence_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Recurrence
+    recurrence_frequency: Optional[RecurrenceFrequency] = None
+    recurrence_interval: Optional[int] = 1
+    recurrence_end_date: Optional[datetime] = None
+    recurrence_count: Optional[int] = None
 
     # Association
-    hive_id: Mapped[Optional[str]] = mapped_column(
-        String, ForeignKey("hives.id", ondelete="CASCADE"), nullable=True
-    )
-    apiary_id: Mapped[Optional[str]] = mapped_column(
-        String, ForeignKey("apiaries.id", ondelete="CASCADE"), nullable=True
-    )
-    user_id: Mapped[str] = mapped_column(
-        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
+    hive_id: Optional[str] = None
+    apiary_id: Optional[str] = None
+    user_id: str
 
     # Status
-    status: Mapped[TaskStatus] = mapped_column(
-        Enum(TaskStatus), default=TaskStatus.PENDING, nullable=False
-    )
-    priority: Mapped[TaskPriority] = mapped_column(
-        Enum(TaskPriority), default=TaskPriority.MEDIUM, nullable=False
-    )
-    completed_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    status: TaskStatus = TaskStatus.PENDING
+    priority: TaskPriority = TaskPriority.MEDIUM
+    completed_date: Optional[datetime] = None
 
     # Additional info
-    estimated_duration_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    weather_dependent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    minimum_temperature: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    estimated_duration_minutes: Optional[int] = None
+    weather_dependent: bool = False
+    minimum_temperature: Optional[float] = None
+    notes: str = ""
 
-    # Relationships
-    hive: Mapped[Optional["Hive"]] = relationship("Hive", foreign_keys=[hive_id])
-    apiary: Mapped[Optional["Apiary"]] = relationship("Apiary", foreign_keys=[apiary_id])
-    user: Mapped["User"] = relationship("User", back_populates="tasks")
+    class Settings:
+        name = "tasks"
+        indexes = [
+            "hive_id",
+            "apiary_id",
+            [("user_id", 1), ("due_date", 1)],
+            [("user_id", 1), ("status", 1)],
+        ]

@@ -1,4 +1,3 @@
-from .base import Base
 from .apiary import Apiary, ApiaryStatus
 from .hive import (
     Hive,
@@ -28,8 +27,21 @@ from .inspection import (
     ResourceLevel,
 )
 
+
+# Registered with init_beanie() at startup.
+DOCUMENT_MODELS = [
+    Apiary,
+    Hive,
+    Inspection,
+    Task,
+    User,
+    Alert,
+    Recommendation,
+]
+
+
 __all__ = [
-    "Base",
+    "DOCUMENT_MODELS",
     "Apiary",
     "ApiaryStatus",
     "Hive",

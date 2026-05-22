@@ -1,4 +1,3 @@
-from sqlalchemy.orm import Session
 from typing import List
 from fastapi import HTTPException, status
 
@@ -8,28 +7,26 @@ from app.schemas import RecommendationCreate, RecommendationUpdate, Recommendati
 
 
 class RecommendationService:
-    def __init__(self, db: Session):
-        self.repository = RecommendationRepository(db)
+    def __init__(self):
+        self.repository = RecommendationRepository()
 
-    def get_recommendations_by_hive(self, hive_id: str) -> List[RecommendationResponse]:
-        recommendations = self.repository.get_by_hive_id(hive_id)
-        return [
-            RecommendationResponse.model_validate(rec) for rec in recommendations
-        ]
+    async def get_recommendations_by_hive(self, hive_id: str) -> List[RecommendationResponse]:
+        recommendations = await self.repository.get_by_hive_id(hive_id)
+        return [RecommendationResponse.model_validate(rec) for rec in recommendations]
 
-    def create_recommendation(
+    async def create_recommendation(
         self, recommendation_data: RecommendationCreate, recommendation_id: str
     ) -> RecommendationResponse:
         recommendation = Recommendation(
             id=recommendation_id, **recommendation_data.model_dump()
         )
-        created_recommendation = self.repository.create(recommendation)
+        created_recommendation = await self.repository.create(recommendation)
         return RecommendationResponse.model_validate(created_recommendation)
 
-    def update_recommendation(
+    async def update_recommendation(
         self, recommendation_id: str, recommendation_data: RecommendationUpdate
     ) -> RecommendationResponse:
-        recommendation = self.repository.get_by_id(recommendation_id)
+        recommendation = await self.repository.get_by_id(recommendation_id)
         if not recommendation:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -40,14 +37,14 @@ class RecommendationService:
         for key, value in update_data.items():
             setattr(recommendation, key, value)
 
-        updated_recommendation = self.repository.update(recommendation)
+        updated_recommendation = await self.repository.update(recommendation)
         return RecommendationResponse.model_validate(updated_recommendation)
 
-    def delete_recommendation(self, recommendation_id: str) -> None:
-        recommendation = self.repository.get_by_id(recommendation_id)
+    async def delete_recommendation(self, recommendation_id: str) -> None:
+        recommendation = await self.repository.get_by_id(recommendation_id)
         if not recommendation:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Recommendation not found",
             )
-        self.repository.delete(recommendation)
+        await self.repository.delete(recommendation)

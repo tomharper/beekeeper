@@ -1,16 +1,16 @@
-from sqlalchemy import Column, String
-from sqlalchemy.orm import relationship
-from app.models.base import Base
+from beanie import Document
+from pydantic import EmailStr
+from pymongo import IndexModel
 
 
-class User(Base):
-    __tablename__ = "users"
+class User(Document):
+    id: str  # type: ignore[assignment]
+    email: EmailStr
+    hashed_password: str
+    full_name: str
 
-    id = Column(String, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-    full_name = Column(String, nullable=False)
-
-    # Relationships
-    tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
-    inspections = relationship("Inspection", back_populates="user", cascade="all, delete-orphan")
+    class Settings:
+        name = "users"
+        indexes = [
+            IndexModel("email", unique=True),
+        ]

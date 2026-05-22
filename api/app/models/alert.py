@@ -1,10 +1,10 @@
 from enum import Enum as PyEnum
 from datetime import datetime
-from sqlalchemy import String, DateTime, Boolean, Enum, Text
-from sqlalchemy.orm import Mapped, mapped_column
-from typing import Optional
 
-from .base import Base, TimestampMixin
+from beanie import Document
+from pydantic import Field
+
+from .base import TimestampMixin
 
 
 class AlertType(str, PyEnum):
@@ -23,18 +23,19 @@ class AlertSeverity(str, PyEnum):
     CRITICAL = "CRITICAL"
 
 
-class Alert(Base, TimestampMixin):
-    __tablename__ = "alerts"
+class Alert(Document, TimestampMixin):
+    id: str  # type: ignore[assignment]
+    type: AlertType
+    title: str
+    message: str
+    severity: AlertSeverity = AlertSeverity.INFO
+    timestamp: datetime
+    # Was comma-separated string in SQLAlchemy; real array in Mongo.
+    hive_ids: list[str] = Field(default_factory=list)
+    dismissed: bool = False
 
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    type: Mapped[AlertType] = mapped_column(Enum(AlertType), nullable=False)
-    title: Mapped[str] = mapped_column(String, nullable=False)
-    message: Mapped[str] = mapped_column(Text, nullable=False)
-    severity: Mapped[AlertSeverity] = mapped_column(
-        Enum(AlertSeverity), default=AlertSeverity.INFO, nullable=False
-    )
-    timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    hive_ids: Mapped[Optional[str]] = mapped_column(
-        String, nullable=True
-    )  # Comma-separated hive IDs
-    dismissed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    class Settings:
+        name = "alerts"
+        indexes = [
+            [("dismissed", 1), ("timestamp", -1)],
+        ]
