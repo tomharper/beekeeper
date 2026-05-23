@@ -1,377 +1,129 @@
-# Beekeeper App - Current State & Next Steps
+# Beekeeper App - Current State
 
-**Last Updated:** November 6, 2025
+**Last Updated:** May 22, 2026
 
-## What Has Been Completed
+## Project Layout
 
-### 1. Project Structure ✅
-
-The project has been set up with three main components:
+The repo's active layout sits at the top level (older `beekeeper/` and `beekeeperApp/` directories remain as legacy scaffolding):
 
 ```
-beekeeperApp/
-├── beekeeperApp/          # Kotlin Multiplatform (Android, iOS, Desktop)
-├── beekeeper/
-│   ├── react-app/         # Web frontend (React + TypeScript)
-│   └── fastapi-backend/   # API backend (FastAPI + Python)
-└── README.md              # Project documentation
+beekeeper/
+├── api/             # FastAPI backend (Python)
+├── web/             # React + TypeScript web app
+├── composeApp/      # Kotlin Multiplatform shared/mobile (Android + iOS targets)
+├── iosApp/          # iOS host app (SwiftUI shell around Compose)
+├── images/          # Shared image assets
+├── beekeeper/       # Legacy: earlier react-app + fastapi-backend scaffold
+└── beekeeperApp/    # Legacy: earlier KMP scaffold
 ```
 
-### 2. Backend API ✅
+## Backend — `api/`
 
-**Location:** `beekeeper/fastapi-backend/`
+FastAPI + async stack. Data on **MongoDB** via motor + Beanie (Pydantic ODM). Photo storage on **Bunny.net** CDN.
 
-A fully functional FastAPI backend with:
+The shared data plane is the **cinefiller MongoDB cluster** (per-app databases — `beekeeper` here) and the **`hyperlocal` Bunny zone** (per-app folder namespace). VRUsafety uses the same cluster/zone for its own services; no shared API service sits between them.
 
-- RESTful API endpoints for:
-  - Hive management (CRUD)
-  - Inspection tracking
-  - Task scheduling
-  - Image upload and analysis
-  - Weather integration (placeholder)
+**Routers** (`api/app/routers/`):
+- `auth` — registration / login (JWT)
+- `apiaries`, `hives`, `inspections`, `tasks` — core CRUD
+- `photos` — image upload (Bunny.net storage)
+- `chat` — Claude-backed AI chat
+- `recommendations`, `alerts`, `weather`
 
-- **Files created:**
-  - `main.py` - Main API with all endpoints
-  - `requirements.txt` - Python dependencies
-  - `.env.example` - Environment configuration template
-  - `README.md` - Backend documentation
+**Models** (`api/app/models/`): Beanie `Document` classes — `Apiary`, `Hive`, `Inspection`, `Task`, `User`, `Alert`, `Recommendation`. Ids are plain string UUIDs (not `PydanticObjectId`). Enums serialised as plain strings.
 
-**To run:**
+**Repositories** (`api/app/repositories/`): thin async wrappers around Beanie `Document.find / get / insert / save / delete`. No DB session passed around — each repo just calls the model directly.
+
+**Services** (`api/app/services/`):
+- `auth_service`, `apiary_service`, `hive_service`, `inspection_service`, `task_service`
+- `ai_analysis_service` — Claude Vision photo analysis
+- `bunny_storage_service` — image upload/CDN
+- `recommendation_service`, `alert_service`, `weather_service` (latter is currently a stub)
+
+`seed_data.py` populates demo apiaries/hives/alerts/recommendations on first boot; self-skips if the apiaries collection is non-empty.
+
+**Run:**
 ```bash
-cd beekeeper/fastapi-backend
-python -m venv venv
-source venv/bin/activate
+cd api
 pip install -r requirements.txt
-python main.py
+# set MONGODB_URI, MONGODB_DB (default "beekeeper"), ANTHROPIC_API_KEY, BUNNY_* env vars
+uvicorn app.main:app --reload
 ```
 
-API will be available at `http://localhost:8000` with auto-docs at `/docs`
+## Web — `web/`
 
-### 3. Web Frontend ✅
+React + TypeScript + Vite + Tailwind.
 
-**Location:** `beekeeper/react-app/`
+**Pages** (`web/src/pages/`): `LoginPage`, `RegisterPage`, `ApiaryListPage`, `ApiaryDashboardPage`, `HiveDetailsPage`, `InspectionsPage`, `TasksPage`, `AIAdvisorPage`, `ProfilePage`.
 
-A complete React web application with:
+**Other:** `components/BottomNav.tsx`, `context/`, `api/`, `types/`, `utils/`.
 
-- **Pages:**
-  - Home dashboard with stats
-  - Hives management
-  - Tasks scheduling
-  - Inspections with photo upload
-
-- **Features:**
-  - Full CRUD for hives, tasks, inspections
-  - Photo upload UI
-  - AI analysis integration (UI ready)
-  - Responsive design
-
-**To run:**
+**Run:**
 ```bash
-cd beekeeper/react-app
+cd web
 npm install
 npm run dev
 ```
 
-App will be available at `http://localhost:3000`
-
-### 4. Domain Models ✅
-
-**Location:** `beekeeperApp/shared/src/commonMain/kotlin/com/beekeeper/app/domain/model/`
-
-Comprehensive beekeeping data models:
-
-- **Hive.kt** - Hive data model with location, queen info, box configuration
-- **Inspection.kt** - Detailed inspection records with health, brood, pest observations
-- **Task.kt** - Task scheduling with recurrence patterns
-- **Apiary.kt** - Apiary (bee yard) management and beekeeping notes
-- **Harvest.kt** - Harvest records, expenses, and income tracking
-
-All models include:
-- Kotlinx Serialization support
-- Comprehensive enums for all categorical data
-- Rich metadata fields
-- Photo/media support
-
-### 5. Package Renaming ✅
-
-The entire KMP codebase has been renamed from:
-- `com.cinefiller.fillerapp` → `com.beekeeper.app`
-
-All package declarations, imports, and manifest files have been updated.
-
-## What Needs To Be Done
-
-### Priority 1: Core Mobile App Implementation
-
-#### A. Update Main App Entry Point
-
-**File:** `beekeeperApp/shared/src/commonMain/kotlin/com/beekeeper/app/App.kt`
-
-Currently shows CineFiller screens. Needs to be replaced with beekeeping screens:
-- Home dashboard
-- Apiary list
-- Hive list and detail
-- Inspection form and history
-- Task list and scheduler
-- Settings
-
-#### B. Create Beekeeping Screens
-
-**Location:** `beekeeperApp/shared/src/commonMain/kotlin/com/beekeeper/app/presentation/screens/`
-
-**Screens needed:**
-
-1. **HomeScreen.kt** - Dashboard with:
-   - Total hives count
-   - Upcoming tasks
-   - Recent inspections
-   - Quick actions
-
-2. **ApiaryListScreen.kt** - List all apiaries
-
-3. **ApiaryDetailScreen.kt** - Apiary details with hive list
-
-4. **HiveListScreen.kt** - All hives with status indicators
-
-5. **HiveDetailScreen.kt** - Single hive with:
-   - Current status
-   - Queen info
-   - Box configuration
-   - Recent inspections
-   - Quick actions
-
-6. **InspectionFormScreen.kt** - Inspection entry with:
-   - Photo capture
-   - AI analysis trigger
-   - All inspection fields
-   - Checklist
-
-7. **InspectionHistoryScreen.kt** - Past inspections
-
-8. **TaskListScreen.kt** - Tasks with filters (pending/completed)
-
-9. **TaskFormScreen.kt** - Create/edit tasks
-
-10. **HarvestScreen.kt** - Harvest records
-
-11. **SettingsScreen.kt** - App settings
-
-#### C. Implement ViewModels
-
-**Location:** `beekeeperApp/shared/src/commonMain/kotlin/com/beekeeper/app/presentation/viewmodels/`
-
-Create ViewModels for each screen to manage state and business logic.
-
-#### D. Create Repository Layer
-
-**Location:** `beekeeperApp/shared/src/commonMain/kotlin/com/beekeeper/app/domain/repository/`
-
-Create repositories for:
-- HiveRepository
-- InspectionRepository
-- TaskRepository
-- ApiaryRepository
-- HarvestRepository
-
-Each should provide methods to:
-- Fetch data from API
-- Cache locally in SQLDelight
-- Handle offline mode
-- Sync with backend
-
-### Priority 2: AI Vision Integration
-
-#### A. Backend AI Service
-
-**File:** `beekeeper/fastapi-backend/main.py`
-
-Implement the `analyze_image` endpoint to:
-1. Accept uploaded image
-2. Call Anthropic Claude Vision API
-3. Analyze for:
-   - Hive health indicators
-   - Pest detection (varroa mites, beetles, etc.)
-   - Queen presence
-   - Brood pattern quality
-   - Colony population
-4. Return structured analysis with confidence scores
-
-**Required:**
-- Add `anthropic` Python package
-- Create prompt templates for different analysis types
-- Store analysis results linked to inspections
-
-#### B. Mobile Photo Capture
-
-Implement camera integration in:
-- Android: CameraX API
-- iOS: Native camera API
-
-#### C. AI Analysis UI
-
-Create screens to show AI analysis results with:
-- Confidence scores
-- Detected issues
-- Recommendations
-- Visual overlays on photos (optional)
-
-### Priority 3: Database & Offline Support
-
-#### A. SQLDelight Schema
-
-**Location:** `beekeeperApp/shared/src/commonMain/sqldelight/`
-
-Create SQL schema files for:
-- Hives
-- Inspections
-- Tasks
-- Apiaries
-- Harvests
-
-**File:** `beekeeperApp/shared/build.gradle`
-- Update SQLDelight database configuration (already set to `BeekeeperDatabase`)
-
-#### B. Implement Local Storage
-
-Create SQLDelight queries for CRUD operations and sync logic.
-
-### Priority 4: Task Scheduling & Notifications
-
-#### A. Local Notifications
-
-Implement platform-specific notification handlers:
-- Android: WorkManager + Notifications API
-- iOS: Local notifications API
-
-#### B. Task Scheduler
-
-Create background service to check for upcoming tasks and send reminders.
-
-### Priority 5: Weather Integration
-
-#### A. Weather API
-
-Choose and integrate weather service (OpenWeather, WeatherAPI, etc.)
-
-#### B. Weather-Based Recommendations
-
-Use weather data to:
-- Suggest optimal inspection times
-- Warn about unfavorable conditions
-- Show 7-day forecast on home screen
-
-### Priority 6: Additional Features
-
-#### A. Data Export
-
-- Export inspections to CSV/PDF
-- Generate hive reports
-- Financial reports (harvest income/expenses)
-
-#### B. Charts & Analytics
-
-- Hive health trends
-- Population changes
-- Harvest totals by season
-- Expense tracking
-
-#### C. Educational Content
-
-- Tips and guides
-- Best practices by season
-- Common issues and solutions
-
-#### D. Multi-User Support
-
-- User authentication
-- Share hives with other beekeepers
-- Collaborative inspections
-
-## File Structure Reference
-
-### Current KMP Structure
-
-```
-beekeeperApp/shared/src/commonMain/kotlin/com/beekeeper/app/
-├── App.kt                    # Main app entry - NEEDS UPDATE
-├── config/                   # Configuration
-├── data/                     # Data layer
-│   ├── api/                  # API client
-│   └── sqldelight/          # Database drivers
-├── domain/                   # Business logic
-│   ├── model/               # Data models ✅ DONE
-│   │   ├── Hive.kt
-│   │   ├── Inspection.kt
-│   │   ├── Task.kt
-│   │   ├── Apiary.kt
-│   │   └── Harvest.kt
-│   ├── repository/          # Repository interfaces - TODO
-│   └── ai/                  # AI service integration - TODO
-└── presentation/            # UI layer
-    ├── screens/             # Screen composables - TODO
-    ├── viewmodels/          # ViewModels - TODO
-    ├── components/          # Reusable components
-    └── theme/              # App theme
-```
-
-## Quick Start Development Guide
-
-### Step 1: Set up the Backend
-
-```bash
-# Terminal 1 - Backend
-cd beekeeperApp/beekeeper/fastapi-backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-# Add ANTHROPIC_API_KEY to .env
-python main.py
-```
-
-### Step 2: Set up the Web Frontend
-
-```bash
-# Terminal 2 - Web App
-cd beekeeperApp/beekeeper/react-app
-npm install
-npm run dev
-```
-
-### Step 3: Build the Mobile App
-
-```bash
-# Terminal 3 - Mobile App
-cd beekeeperApp/beekeeperApp
-./gradlew :androidApp:installDebug
-# or
-./gradlew :desktopApp:run
-```
-
-## Next Immediate Steps
-
-1. **Update App.kt** to show beekeeping navigation
-2. **Create HomeScreen.kt** with basic dashboard
-3. **Create HiveListScreen.kt** with mock data
-4. **Implement HiveRepository** to connect to backend
-5. **Test full stack** - Web → API → Mobile flow
-
-## Notes
-
-- The backend and web app are fully functional and can be used independently
-- The mobile app structure is ready but needs the screens implemented
-- All data models are defined and ready to use
-- Package renaming is complete
-- SQLDelight is configured but schema needs to be created
-
-## Resources
-
-- **Compose Multiplatform Docs:** https://www.jetbrains.com/lp/compose-multiplatform/
-- **Kotlinx Serialization:** https://github.com/Kotlin/kotlinx.serialization
-- **SQLDelight:** https://cashapp.github.io/sqldelight/
-- **Anthropic API:** https://docs.anthropic.com/claude/reference/messages_post
-- **FastAPI Docs:** https://fastapi.tiangolo.com/
-- **React Router:** https://reactrouter.com/
-
----
-
-**Status:** Foundation complete, ready for screen implementation and feature development.
+## Mobile — `composeApp/` + `iosApp/`
+
+Kotlin Multiplatform with Android + iOS targets. ~39 Kotlin files under `commonMain`.
+
+**Domain models** (`domain/model/`): `Apiary`, `Hive`, `Inspection`, `Task`, `Alert`, `Recommendation`, `Weather`, `ChatMessage`.
+
+**Screens** (`ui/screens/`):
+- `dashboard/ApiaryDashboardScreen`
+- `apiary/ApiaryListScreen`
+- `hive/HiveDetailsScreen`
+- `inspections/InspectionsScreen`, `CreateInspectionScreen`
+- `tasks/TasksScreen`
+- `advisor/AIAdvisorScreen`, `AIAdvisorChatScreen`
+
+**ViewModels:** `InspectionsViewModel`, `TasksViewModel`, `AIAdvisorViewModel`.
+
+**Data layer:**
+- `data/api/` — `ApiClient`, `ApiConfig`, `ApiModels`
+- `data/repository/` — `InspectionRepository`, `TaskRepository`, `AIAdvisorRepository`
+- `data/database/` — `Database`, `DatabaseDriverFactory`, mappers for Hive/Apiary/Task/Inspection
+- `data/MockDataRepository.kt`
+
+**SQLDelight schema** (`commonMain/sqldelight/com/beekeeper/app/database/`): `Apiary.sq`, `Hive.sq`, `Inspection.sq`, `Task.sq`.
+
+**iOS host** (`iosApp/iOSApp.swift`): minimal SwiftUI shell that mounts `MainViewController` from Compose. See `iOS_SETUP.md`.
+
+## Recent History
+
+Recent commits on `main`:
+- **Backend migrated** SQLAlchemy/SQLite → motor/Beanie/MongoDB (commit `6c8d039`). Two non-mechanical shape changes: `Alert.hive_ids` (csv string → `list[str]`) and `Inspection.photos` (json-text → `list[str]`). `Apiary.hive_count` now computed in the service layer (was a SQLAlchemy relationship property).
+- PR #7 — backend AI chat endpoint with Claude
+- iOS app setup + `iOS_SETUP.md`
+- PR #6 — Android API connectivity + AI chat
+- Offline support (SQLDelight) + `CreateInspectionScreen` UI
+- CameraX dependencies for photo capture
+- Web bottom navigation + mobile bottom nav / FABs
+- AI Vision Integration (frontend + backend, Bunny.net storage)
+
+## Known Gaps / Open Areas
+
+These aren't observable as completed in the tree — worth confirming before assuming "done":
+- **Mobile + web still need to be re-pointed at the new backend.** They'll keep working against the old camelCase JSON shape (unchanged), but if env vars or build configs reference any legacy DB shape they may need updates.
+- **Customer/follower-facing surface not built yet.** The current routes are all operator-side; the read-only "what is the commercial beekeeper doing" view that other smaller beekeepers would consume is still TBD.
+- **Local-first sync.** Mobile SQLDelight tables exist on-device, but there's no sync layer wiring local writes up to Mongo. This needs design before it gets built.
+- **Harvest** — present in legacy models, no screen/router visible in the current `api/` or `composeApp/`.
+- **Notifications / task reminders** — no platform notification handlers visible.
+- **Charts / analytics, data export (CSV/PDF), educational content** — not present.
+- **iOS host** is minimal; verify camera, storage, and notifications work end-to-end on iOS, not just Android.
+- **Legacy `beekeeper/` and `beekeeperApp/` dirs** — decide whether to delete or keep as reference; they'll confuse contributors.
+
+## Working Tree Status (snapshot)
+
+- Branch `main`, ahead of `origin/main` by 1 commit (Mongo migration, not yet pushed).
+- Other uncommitted noise: `.DS_Store` modification and untracked `web/.env` (correctly ignored from staging).
+
+## Reference Docs
+
+- `README.md` — top-level overview
+- `DESIGN_ANALYSIS.md` — design notes
+- `iOS_SETUP.md` — iOS build setup
+- `TESTING.md` — testing notes
+- `api/CHAT_SETUP.md` — AI chat configuration
