@@ -372,4 +372,64 @@ export const apiClient = {
     );
     return handleResponse(response);
   },
+
+  // Follow / Feed
+  async searchUsers(q: string) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(
+      `${API_BASE_URL}/users/search?q=${encodeURIComponent(q)}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return handleResponse(response);
+  },
+
+  async getFollowing() {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/follows/following`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async getFollowers() {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/follows/followers`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async followUser(userId: string) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/follows/${userId}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async unfollowUser(userId: string) {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/follows/${userId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
+
+  async getFeed(params?: { limit?: number; before?: string }) {
+    const token = localStorage.getItem('authToken');
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.before) queryParams.append('before', params.before);
+
+    const url = queryParams.toString()
+      ? `${API_BASE_URL}/feed?${queryParams}`
+      : `${API_BASE_URL}/feed`;
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return handleResponse(response);
+  },
 };

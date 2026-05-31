@@ -18,6 +18,7 @@ val bottomNavItems = listOf(
     BottomNavItem(Screen.ApiaryList, "Apiaries", Icons.Default.Home),
     BottomNavItem(Screen.Tasks, "Tasks", Icons.Default.CheckCircle),
     BottomNavItem(Screen.Inspections, "Inspections", Icons.Default.Search),
+    BottomNavItem(Screen.Feed, "Following", Icons.Default.People),
     BottomNavItem(Screen.AIAdvisor, "AI Advisor", Icons.Default.SmartToy)
 )
 
@@ -37,6 +38,7 @@ fun BottomNavigationBar(
                                         currentRoute?.contains("HiveDetails") == true
                 is Screen.Tasks -> currentRoute?.contains("Tasks") == true
                 is Screen.Inspections -> currentRoute?.contains("Inspections") == true
+                is Screen.Feed -> currentRoute?.contains("Feed") == true
                 is Screen.AIAdvisor -> currentRoute?.contains("AIAdvisor") == true
                 else -> false
             }

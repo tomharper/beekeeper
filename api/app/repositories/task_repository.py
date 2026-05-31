@@ -69,6 +69,20 @@ class TaskRepository:
             .to_list()
         )
 
+    async def get_feed(
+        self, user_ids: List[str], limit: int = 20, before: Optional[datetime] = None
+    ) -> List[Task]:
+        """Public tasks from the given users, newest first (for the follow feed)."""
+        conditions = [In(Task.user_id, user_ids), Task.is_public == True]  # noqa: E712
+        if before is not None:
+            conditions.append(Task.due_date < before)
+        return (
+            await Task.find(*conditions)
+            .sort(-Task.due_date)
+            .limit(limit)
+            .to_list()
+        )
+
     async def create(self, task: Task) -> Task:
         await task.insert()
         return task

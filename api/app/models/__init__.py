@@ -27,6 +27,8 @@ from .inspection import (
     HealthStatus,
     ResourceLevel,
 )
+from .event import Event
+from .notification import Notification
 
 
 # Registered with init_beanie() at startup.
@@ -39,6 +41,8 @@ DOCUMENT_MODELS = [
     Follow,
     Alert,
     Recommendation,
+    Event,
+    Notification,
 ]
 
 
@@ -72,4 +76,6 @@ __all__ = [
     "ColonyPopulation",
     "HealthStatus",
     "ResourceLevel",
+    "Event",
+    "Notification",
 ]

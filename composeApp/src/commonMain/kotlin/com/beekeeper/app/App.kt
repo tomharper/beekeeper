@@ -17,6 +17,7 @@ import com.beekeeper.app.ui.screens.dashboard.ApiaryDashboardScreen
 import com.beekeeper.app.ui.screens.hive.HiveDetailsScreen
 import com.beekeeper.app.ui.screens.tasks.TasksScreen
 import com.beekeeper.app.ui.screens.inspections.InspectionsScreen
+import com.beekeeper.app.ui.screens.feed.FeedScreen
 import com.beekeeper.app.ui.viewmodel.InspectionsViewModel
 import com.beekeeper.app.ui.theme.BeekeeperTheme
 import com.beekeeper.app.ui.navigation.BottomNavigationBar
@@ -108,6 +109,12 @@ fun App() {
                     onCreateInspection = {
                         navController.navigate(Screen.CreateInspection())
                     }
+                )
+            }
+
+            composable<Screen.Feed> {
+                FeedScreen(
+                    viewModel = koinInject()
                 )
             }
 

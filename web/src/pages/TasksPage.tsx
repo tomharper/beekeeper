@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Plus,
-  Filter,
+  Calendar,
   CheckCircle,
   Clock,
   AlertCircle,
@@ -16,7 +15,6 @@ import { Task, TaskStatus, TaskPriority, TaskType } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function TasksPage() {
-  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

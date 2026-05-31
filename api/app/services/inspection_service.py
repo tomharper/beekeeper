@@ -4,11 +4,13 @@ from fastapi import HTTPException, status
 from app.models import Inspection
 from app.repositories import InspectionRepository
 from app.schemas import InspectionCreate, InspectionUpdate, InspectionResponse
+from app.services.notification_service import NotificationService
 
 
 class InspectionService:
     def __init__(self):
         self.repository = InspectionRepository()
+        self.notifications = NotificationService()
 
     async def get_all_inspections(self, user_id: str) -> List[InspectionResponse]:
         inspections = await self.repository.get_by_user_id(user_id)
@@ -58,6 +60,20 @@ class InspectionService:
             **inspection_data.model_dump(),
         )
         created_inspection = await self.repository.create(inspection)
+
+        # Best-effort fan-out to followers; never fail the create on notification error.
+        if created_inspection.is_public:
+            try:
+                await self.notifications.create_for_followers(
+                    actor_id=user_id,
+                    type="inspection",
+                    title="New hive inspection",
+                    ref_type="inspection",
+                    ref_id=created_inspection.id,
+                )
+            except Exception:
+                pass
+
         return InspectionResponse.model_validate(created_inspection)
 
     async def update_inspection(

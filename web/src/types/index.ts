@@ -333,6 +333,23 @@ export interface Inspection {
   notes: string;
   nextInspectionDate?: Date;
 
+  // Visibility to followers
+  isPublic: boolean;
+
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Follow / Feed
+export interface UserSummary {
+  id: string;
+  fullName: string;
+}
+
+export interface FeedItem {
+  type: 'inspection' | 'task';
+  author: UserSummary;
+  occurredAt: string; // ISO timestamp
+  inspection?: Inspection;
+  task?: Task;
 }

@@ -6,6 +6,7 @@ import HiveDetailsPage from './pages/HiveDetailsPage';
 import AIAdvisorPage from './pages/AIAdvisorPage';
 import TasksPage from './pages/TasksPage';
 import InspectionsPage from './pages/InspectionsPage';
+import FollowingPage from './pages/FollowingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
@@ -80,6 +81,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <InspectionsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/following"
+        element={
+          <ProtectedRoute>
+            <FollowingPage />
           </ProtectedRoute>
         }
       />

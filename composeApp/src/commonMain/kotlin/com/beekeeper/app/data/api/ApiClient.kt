@@ -204,4 +204,39 @@ class ApiClient(private val baseUrl: String = ApiConfig.getBaseUrl()) {
             setBody(mapOf("message" to message))
         }.body()
     }
+
+    // Feed
+    suspend fun getFeed(limit: Int = 20, before: String? = null): List<FeedItemDto> {
+        return httpClient.get("$baseUrl/feed") {
+            parameter("limit", limit)
+            before?.let { parameter("before", it) }
+            addAuthHeader()
+        }.body()
+    }
+
+    // Follow
+    suspend fun searchUsers(q: String): List<UserSummaryDto> {
+        return httpClient.get("$baseUrl/users/search") {
+            parameter("q", q)
+            addAuthHeader()
+        }.body()
+    }
+
+    suspend fun getFollowing(): List<UserSummaryDto> {
+        return httpClient.get("$baseUrl/follows/following") {
+            addAuthHeader()
+        }.body()
+    }
+
+    suspend fun followUser(id: String) {
+        httpClient.post("$baseUrl/follows/$id") {
+            addAuthHeader()
+        }
+    }
+
+    suspend fun unfollowUser(id: String) {
+        httpClient.delete("$baseUrl/follows/$id") {
+            addAuthHeader()
+        }
+    }
 }

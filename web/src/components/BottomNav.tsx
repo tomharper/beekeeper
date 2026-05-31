@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, CheckCircle, Eye, MessageSquare, User } from 'lucide-react';
+import { Home, CheckCircle, Eye, Rss, MessageSquare, User } from 'lucide-react';
 
 export default function BottomNav() {
   const navigate = useNavigate();
@@ -9,6 +9,7 @@ export default function BottomNav() {
     { path: '/', icon: Home, label: 'Apiaries' },
     { path: '/tasks', icon: CheckCircle, label: 'Tasks' },
     { path: '/inspections', icon: Eye, label: 'Inspections' },
+    { path: '/following', icon: Rss, label: 'Following' },
     { path: '/advisor', icon: MessageSquare, label: 'AI Advisor' },
     { path: '/profile', icon: User, label: 'Profile' },
   ];

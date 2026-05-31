@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   Plus,
   Calendar,
@@ -30,7 +30,6 @@ import {
 import { formatDistanceToNow, format } from 'date-fns';
 
 export default function InspectionsPage() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const hiveId = searchParams.get('hiveId');
 
@@ -39,7 +38,6 @@ export default function InspectionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedHiveId, setSelectedHiveId] = useState(hiveId || '');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -53,8 +51,8 @@ export default function InspectionsPage() {
     population: ColonyPopulation.MEDIUM,
     temperament: ColonyTemperament.CALM,
     healthStatus: InspectionHealthStatus.HEALTHY,
-    honeyStores: ResourceLevel.MEDIUM,
-    pollenStores: ResourceLevel.MEDIUM,
+    honeyStores: ResourceLevel.ADEQUATE,
+    pollenStores: ResourceLevel.ADEQUATE,
     varroaMitesDetected: false,
     otherPestsDetected: false,
     feedingDone: false,
@@ -204,8 +202,8 @@ export default function InspectionsPage() {
       population: ColonyPopulation.MEDIUM,
       temperament: ColonyTemperament.CALM,
       healthStatus: InspectionHealthStatus.HEALTHY,
-      honeyStores: ResourceLevel.MEDIUM,
-      pollenStores: ResourceLevel.MEDIUM,
+      honeyStores: ResourceLevel.ADEQUATE,
+      pollenStores: ResourceLevel.ADEQUATE,
       varroaMitesDetected: false,
       otherPestsDetected: false,
       feedingDone: false,

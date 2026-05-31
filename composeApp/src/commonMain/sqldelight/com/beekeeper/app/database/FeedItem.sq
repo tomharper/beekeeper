@@ -1,0 +1,27 @@
+-- READ-ONLY cache of public activity from followed users.
+-- Written ONLY by FeedRepository (API -> cache); never edited by the user.
+CREATE TABLE FeedItem (
+    id TEXT NOT NULL PRIMARY KEY,
+    type TEXT NOT NULL,
+    authorId TEXT NOT NULL,
+    authorName TEXT NOT NULL,
+    occurredAt INTEGER NOT NULL,
+    hiveId TEXT,
+    summary TEXT NOT NULL
+);
+
+-- All cached feed items, newest first
+selectAll:
+SELECT * FROM FeedItem ORDER BY occurredAt DESC;
+
+-- Cached feed items older than a cursor, newest first
+selectBefore:
+SELECT * FROM FeedItem WHERE occurredAt < ? ORDER BY occurredAt DESC;
+
+-- Insert or replace a feed item
+insertOrReplace:
+INSERT OR REPLACE INTO FeedItem VALUES ?;
+
+-- Clear the cache
+deleteAll:
+DELETE FROM FeedItem;

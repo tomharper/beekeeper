@@ -73,6 +73,32 @@ data class CreateInspectionRequest(
     val nextInspectionDate: LocalDateTime? = null
 )
 
+// ---- Follow / Feed ----
+
+/** Minimal public view of a user (matches backend UserSummary: id, fullName). */
+@Serializable
+data class UserSummaryDto(
+    val id: String,
+    val fullName: String
+)
+
+/**
+ * A single feed item (matches backend FeedItemResponse).
+ *
+ * `type` is "inspection" | "task"; the matching record is carried in
+ * [inspection] / [task]. The nested records reuse the same JSON shape the
+ * app already consumes via /inspections and /tasks, so the existing
+ * [Inspection] / [Task] domain models deserialize them directly.
+ */
+@Serializable
+data class FeedItemDto(
+    val type: String,
+    val author: UserSummaryDto,
+    val occurredAt: LocalDateTime,
+    val inspection: Inspection? = null,
+    val task: Task? = null
+)
+
 @Serializable
 data class UpdateInspectionRequest(
     val inspectionDate: LocalDateTime? = null,

@@ -10,4 +10,5 @@ class Database(driverFactory: DatabaseDriverFactory) {
     val inspectionQueries = database.inspectionQueries
     val hiveQueries = database.hiveQueries
     val apiaryQueries = database.apiaryQueries
+    val feedItemQueries = database.feedItemQueries
 }

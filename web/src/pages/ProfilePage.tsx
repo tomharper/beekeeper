@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Menu, Bell, User, Mail, LogOut, ArrowLeft } from 'lucide-react';
+import { Bell, User, Mail, LogOut, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import BottomNav from '../components/BottomNav';
 
