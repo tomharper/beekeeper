@@ -63,7 +63,7 @@ fun FeedItemDto.toDbFeedItem(): DbFeedItem {
         type = itemType,
         authorId = author.id,
         authorName = author.fullName,
-        occurredAt = occurredAt.toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds(),
+        occurredAt = occurredAt.toInstant(TimeZone.UTC).toEpochMilliseconds(),
         hiveId = inspection?.hiveId ?: task?.hiveId,
         summary = summaryLine()
     )
@@ -76,7 +76,7 @@ fun DbFeedItem.toDomainFeedItem(): FeedItem {
         type = if (type == "TASK") FeedItemType.TASK else FeedItemType.INSPECTION,
         author = FollowUser(id = authorId, fullName = authorName),
         occurredAt = Instant.fromEpochMilliseconds(occurredAt)
-            .toLocalDateTime(TimeZone.currentSystemDefault()),
+            .toLocalDateTime(TimeZone.UTC),
         hiveId = hiveId,
         summary = summary,
         inspection = null,

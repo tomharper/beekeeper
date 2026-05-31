@@ -24,6 +24,7 @@ import com.beekeeper.app.domain.model.Hive
 import com.beekeeper.app.domain.model.HiveStatus
 import com.beekeeper.app.ui.theme.*
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.toInstant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

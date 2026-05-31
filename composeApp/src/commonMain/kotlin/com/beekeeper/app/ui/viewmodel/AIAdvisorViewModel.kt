@@ -39,7 +39,7 @@ class AIAdvisorViewModel(
         if (content.isBlank()) return
 
         val userMessage = ChatMessage(
-            id = "user-${System.currentTimeMillis()}",
+            id = "user-${Clock.System.now().toEpochMilliseconds()}",
             content = content,
             role = MessageRole.USER,
             timestamp = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())

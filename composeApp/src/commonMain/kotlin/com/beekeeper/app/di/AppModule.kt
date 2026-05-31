@@ -2,7 +2,6 @@ package com.beekeeper.app.di
 
 import com.beekeeper.app.data.api.ApiClient
 import com.beekeeper.app.data.database.Database
-import com.beekeeper.app.data.database.DatabaseDriverFactory
 import com.beekeeper.app.data.repository.AIAdvisorRepository
 import com.beekeeper.app.data.repository.FeedRepository
 import com.beekeeper.app.data.repository.FollowRepository
@@ -15,8 +14,7 @@ import com.beekeeper.app.ui.viewmodel.TasksViewModel
 import org.koin.dsl.module
 
 val appModule = module {
-    // Database
-    single { DatabaseDriverFactory(get()) }
+    // Database — DatabaseDriverFactory is provided per-platform via platformModule
     single { Database(get()) }
 
     // API Client

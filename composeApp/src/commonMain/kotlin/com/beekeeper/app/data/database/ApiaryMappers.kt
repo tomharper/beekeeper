@@ -3,6 +3,7 @@ package com.beekeeper.app.data.database
 import com.beekeeper.app.database.Apiary as DbApiary
 import com.beekeeper.app.domain.model.Apiary
 import com.beekeeper.app.domain.model.ApiaryStatus
+import kotlinx.datetime.Clock
 
 /**
  * Extension function to convert domain Apiary to database Apiary
@@ -15,7 +16,10 @@ fun Apiary.toDbApiary(): DbApiary {
         latitude = latitude,
         longitude = longitude,
         hiveCount = hiveCount.toLong(),
-        status = status.name
+        status = status.name,
+        // Domain Apiary carries no timestamps; stamp at cache-write time (not surfaced)
+        createdAt = Clock.System.now().toEpochMilliseconds(),
+        updatedAt = Clock.System.now().toEpochMilliseconds()
     )
 }
 

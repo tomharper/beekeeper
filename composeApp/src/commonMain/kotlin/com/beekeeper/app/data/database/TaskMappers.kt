@@ -8,6 +8,7 @@ import com.beekeeper.app.domain.model.TaskPriority
 import com.beekeeper.app.domain.model.RecurrenceFrequency
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 
 fun Task.toDbTask(): DbTask {

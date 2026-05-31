@@ -1,1 +1,9 @@
 .DS_Store
+
+# Gradle / build outputs
+.gradle/
+build/
+**/build/
+
+# Local machine config (SDK path, etc.) — must not be committed
+local.properties

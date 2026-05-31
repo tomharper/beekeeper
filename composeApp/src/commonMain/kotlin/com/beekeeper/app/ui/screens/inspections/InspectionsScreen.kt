@@ -410,7 +410,7 @@ fun getHealthStatusColor(status: InspectionHealthStatus): Color {
         InspectionHealthStatus.EXCELLENT -> Color(0xFF4CAF50)
         InspectionHealthStatus.HEALTHY -> Color(0xFF8BC34A)
         InspectionHealthStatus.FAIR -> Color(0xFFFFD700)
-        InspectionHealthStatus.CONCERNING -> Color(0xFFFF9F40)
+        InspectionHealthStatus.CONCERNING, InspectionHealthStatus.NEEDS_ATTENTION -> Color(0xFFFF9F40)
         InspectionHealthStatus.CRITICAL -> Color(0xFFFF6B6B)
     }
 }
@@ -420,7 +420,7 @@ fun getHealthStatusBackgroundColor(status: InspectionHealthStatus): Color {
         InspectionHealthStatus.EXCELLENT -> Color(0xFF1B3D1F)
         InspectionHealthStatus.HEALTHY -> Color(0xFF253D1F)
         InspectionHealthStatus.FAIR -> Color(0xFF3D3A1F)
-        InspectionHealthStatus.CONCERNING -> Color(0xFF3D2F1F)
+        InspectionHealthStatus.CONCERNING, InspectionHealthStatus.NEEDS_ATTENTION -> Color(0xFF3D2F1F)
         InspectionHealthStatus.CRITICAL -> Color(0xFF3D1F1F)
     }
 }
@@ -429,7 +429,7 @@ fun getHealthStatusIcon(status: InspectionHealthStatus): androidx.compose.ui.gra
     return when (status) {
         InspectionHealthStatus.EXCELLENT, InspectionHealthStatus.HEALTHY -> Icons.Default.CheckCircle
         InspectionHealthStatus.FAIR -> Icons.Default.Info
-        InspectionHealthStatus.CONCERNING, InspectionHealthStatus.CRITICAL -> Icons.Default.Warning
+        InspectionHealthStatus.CONCERNING, InspectionHealthStatus.NEEDS_ATTENTION, InspectionHealthStatus.CRITICAL -> Icons.Default.Warning
     }
 }
 
@@ -445,7 +445,7 @@ fun getBroodPatternColor(pattern: BroodPattern): Color {
     return when (pattern) {
         BroodPattern.EXCELLENT, BroodPattern.GOOD -> Color(0xFF4CAF50)
         BroodPattern.FAIR -> Color(0xFFFFD700)
-        BroodPattern.POOR, BroodPattern.SPOTTY -> Color(0xFFFF6B6B)
+        BroodPattern.POOR, BroodPattern.SPOTTY, BroodPattern.NONE -> Color(0xFFFF6B6B)
     }
 }
 
@@ -453,15 +453,15 @@ fun getTemperamentColor(temperament: ColonyTemperament): Color {
     return when (temperament) {
         ColonyTemperament.VERY_CALM, ColonyTemperament.CALM -> Color(0xFF4CAF50)
         ColonyTemperament.MODERATE -> Color(0xFFFFD700)
-        ColonyTemperament.DEFENSIVE, ColonyTemperament.VERY_DEFENSIVE, ColonyTemperament.AGGRESSIVE -> Color(0xFFFF6B6B)
+        ColonyTemperament.DEFENSIVE, ColonyTemperament.VERY_DEFENSIVE, ColonyTemperament.AGGRESSIVE, ColonyTemperament.VERY_AGGRESSIVE -> Color(0xFFFF6B6B)
     }
 }
 
 fun getResourceLevelColor(level: ResourceLevel): Color {
     return when (level) {
-        ResourceLevel.FULL, ResourceLevel.HIGH -> Color(0xFF4CAF50)
-        ResourceLevel.MEDIUM -> Color(0xFFFFD700)
-        ResourceLevel.LOW, ResourceLevel.EMPTY -> Color(0xFFFF6B6B)
+        ResourceLevel.FULL, ResourceLevel.HIGH, ResourceLevel.GOOD, ResourceLevel.EXCELLENT -> Color(0xFF4CAF50)
+        ResourceLevel.MEDIUM, ResourceLevel.ADEQUATE -> Color(0xFFFFD700)
+        ResourceLevel.LOW, ResourceLevel.EMPTY, ResourceLevel.NONE, ResourceLevel.VERY_LOW -> Color(0xFFFF6B6B)
     }
 }
 

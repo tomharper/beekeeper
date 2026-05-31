@@ -103,13 +103,7 @@ fun HiveDetailsScreen(
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = BeekeeperGreenDark,
-                contentColor = BeekeeperGold,
-                indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(
-                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                        color = BeekeeperGold
-                    )
-                }
+                contentColor = BeekeeperGold
             ) {
                 Tab(
                     selected = selectedTab == 0,

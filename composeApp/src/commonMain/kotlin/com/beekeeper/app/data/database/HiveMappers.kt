@@ -2,6 +2,7 @@ package com.beekeeper.app.data.database
 
 import com.beekeeper.app.database.Hive as DbHive
 import com.beekeeper.app.domain.model.*
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -21,7 +22,10 @@ fun Hive.toDbHive(): DbHive {
         colonyStrength = colonyStrength.name,
         queenStatus = queenStatus.name,
         temperament = temperament.name,
-        honeyStores = honeyStores.name
+        honeyStores = honeyStores.name,
+        // Domain Hive carries no timestamps; stamp at cache-write time (not surfaced)
+        createdAt = Clock.System.now().toEpochMilliseconds(),
+        updatedAt = Clock.System.now().toEpochMilliseconds()
     )
 }
 

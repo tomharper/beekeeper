@@ -50,9 +50,12 @@ data class Inspection(
 enum class QueenCellStatus {
     NONE,
     PLAY_CUPS,
+    QUEEN_CUPS,
     QUEEN_CELLS,
     CHARGED_CELLS,
     CAPPED_CELLS,
+    SUPERSEDURE_CELLS,
+    SWARM_CELLS,
     EMERGENCY_CELLS
 }
 
@@ -61,7 +64,8 @@ enum class BroodPattern {
     GOOD,
     FAIR,
     POOR,
-    SPOTTY
+    SPOTTY,
+    NONE
 }
 
 enum class ColonyTemperament {
@@ -70,7 +74,8 @@ enum class ColonyTemperament {
     MODERATE,
     DEFENSIVE,
     VERY_DEFENSIVE,
-    AGGRESSIVE
+    AGGRESSIVE,
+    VERY_AGGRESSIVE
 }
 
 enum class ColonyPopulation {
@@ -86,6 +91,7 @@ enum class InspectionHealthStatus {
     HEALTHY,
     FAIR,
     CONCERNING,
+    NEEDS_ATTENTION,
     CRITICAL
 }
 
@@ -94,5 +100,10 @@ enum class ResourceLevel {
     HIGH,
     MEDIUM,
     LOW,
-    EMPTY
+    EMPTY,
+    NONE,
+    VERY_LOW,
+    ADEQUATE,
+    GOOD,
+    EXCELLENT
 }
