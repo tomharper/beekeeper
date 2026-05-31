@@ -15,6 +15,8 @@ from app.routers import (
     inspections_router,
     photos_router,
     chat_router,
+    follow_router,
+    feed_router,
 )
 from app.routers.auth import router as auth_router
 
@@ -59,6 +61,8 @@ app.include_router(tasks_router, prefix="/api")
 app.include_router(inspections_router, prefix="/api")
 app.include_router(photos_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
+app.include_router(follow_router, prefix="/api")
+app.include_router(feed_router, prefix="/api")
 
 
 @app.get("/")

@@ -9,8 +9,12 @@ from .recommendation import (
 from .weather import WeatherResponse, WeatherCondition
 from .task import TaskCreate, TaskUpdate, TaskResponse, RecurrenceData
 from .inspection import InspectionCreate, InspectionUpdate, InspectionResponse
+from .follow import UserSummary
+from .feed import FeedItemResponse
 
 __all__ = [
+    "UserSummary",
+    "FeedItemResponse",
     "ApiaryCreate",
     "ApiaryUpdate",
     "ApiaryResponse",

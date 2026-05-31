@@ -1,4 +1,6 @@
 from typing import List, Optional
+from datetime import datetime
+from beanie.operators import In
 from app.models import Inspection
 
 
@@ -42,6 +44,20 @@ class InspectionRepository:
     async def get_recent(self, user_id: str, limit: int = 10) -> List[Inspection]:
         return (
             await Inspection.find(Inspection.user_id == user_id)
+            .sort(-Inspection.inspection_date)
+            .limit(limit)
+            .to_list()
+        )
+
+    async def get_feed(
+        self, user_ids: List[str], limit: int = 20, before: Optional[datetime] = None
+    ) -> List[Inspection]:
+        """Public inspections from the given users, newest first (for the follow feed)."""
+        conditions = [In(Inspection.user_id, user_ids), Inspection.is_public == True]  # noqa: E712
+        if before is not None:
+            conditions.append(Inspection.inspection_date < before)
+        return (
+            await Inspection.find(*conditions)
             .sort(-Inspection.inspection_date)
             .limit(limit)
             .to_list()

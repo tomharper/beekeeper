@@ -10,6 +10,7 @@ from .hive import (
 from .alert import Alert, AlertType, AlertSeverity
 from .recommendation import Recommendation, RecommendationType, Priority
 from .user import User
+from .follow import Follow
 from .task import (
     Task,
     TaskType,
@@ -35,6 +36,7 @@ DOCUMENT_MODELS = [
     Inspection,
     Task,
     User,
+    Follow,
     Alert,
     Recommendation,
 ]
@@ -57,6 +59,7 @@ __all__ = [
     "RecommendationType",
     "Priority",
     "User",
+    "Follow",
     "Task",
     "TaskType",
     "TaskStatus",

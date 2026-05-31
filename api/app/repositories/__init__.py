@@ -4,6 +4,7 @@ from .alert_repository import AlertRepository
 from .recommendation_repository import RecommendationRepository
 from .task_repository import TaskRepository
 from .inspection_repository import InspectionRepository
+from .follow_repository import FollowRepository
 
 __all__ = [
     "ApiaryRepository",
@@ -12,4 +13,5 @@ __all__ = [
     "RecommendationRepository",
     "TaskRepository",
     "InspectionRepository",
+    "FollowRepository",
 ]

@@ -5,6 +5,8 @@ from .recommendation_service import RecommendationService
 from .weather_service import WeatherService
 from .task_service import TaskService
 from .inspection_service import InspectionService
+from .follow_service import FollowService
+from .feed_service import FeedService
 
 __all__ = [
     "ApiaryService",
@@ -14,4 +16,6 @@ __all__ = [
     "WeatherService",
     "TaskService",
     "InspectionService",
+    "FollowService",
+    "FeedService",
 ]

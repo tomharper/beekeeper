@@ -66,6 +66,9 @@ class InspectionBase(BaseModel):
     notes: str = ""
     next_inspection_date: Optional[datetime] = None
 
+    # Visibility to followers (default public)
+    is_public: bool = True
+
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
@@ -106,6 +109,7 @@ class InspectionUpdate(BaseModel):
     photos: Optional[list[str]] = None
     notes: Optional[str] = None
     next_inspection_date: Optional[datetime] = None
+    is_public: Optional[bool] = None
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 

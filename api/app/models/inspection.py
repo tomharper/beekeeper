@@ -113,6 +113,11 @@ class Inspection(Document, TimestampMixin):
     notes: str = ""
     next_inspection_date: Optional[datetime] = None
 
+    # Visibility — public records flow to followers' feeds.
+    # New records default public; existing records (no field) are excluded by
+    # the feed's `is_public == True` filter, so no migration is needed.
+    is_public: bool = True
+
     class Settings:
         name = "inspections"
         indexes = [
@@ -120,4 +125,6 @@ class Inspection(Document, TimestampMixin):
             "user_id",
             [("hive_id", 1), ("inspection_date", -1)],
             [("user_id", 1), ("inspection_date", -1)],
+            # Feed query: visible records from followed users, newest first
+            [("user_id", 1), ("is_public", 1), ("inspection_date", -1)],
         ]

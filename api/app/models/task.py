@@ -109,6 +109,9 @@ class Task(Document, TimestampMixin):
     minimum_temperature: Optional[float] = None
     notes: str = ""
 
+    # Visibility — public tasks flow to followers' feeds (used from Phase 2 on)
+    is_public: bool = True
+
     class Settings:
         name = "tasks"
         indexes = [
