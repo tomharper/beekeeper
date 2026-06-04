@@ -1,0 +1,22 @@
+[project]
+name = "assistive-core"
+version = "0.1.0"
+description = "Shared social-broadcast substrate for assistive vertical apps (beekeeper, hypster, social-weather, VRU)."
+requires-python = ">=3.12"
+dependencies = [
+    "motor>=3.4",
+    "beanie>=1.26",
+    "fastapi>=0.110",
+    "pydantic>=2.6",
+    "pydantic[email]>=2.6",
+    "python-jose>=3.3",
+    "passlib[bcrypt]>=1.7",
+    "httpx>=0.27",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["assistive_core*"]

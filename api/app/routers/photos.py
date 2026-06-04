@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status, Form
 
-from app.models import User
-from app.routers.auth import get_current_user
+from assistive_core import User, get_current_user
 from app.services.bunny_storage_service import bunny_storage
 from app.services.ai_analysis_service import ai_analysis_service
 

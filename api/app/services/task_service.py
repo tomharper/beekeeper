@@ -1,16 +1,16 @@
 from typing import List
 from fastapi import HTTPException, status
 
+from assistive_core import announce
+
 from app.models import Task, TaskStatus
 from app.repositories import TaskRepository
 from app.schemas import TaskCreate, TaskUpdate, TaskResponse
-from app.services.notification_service import NotificationService
 
 
 class TaskService:
     def __init__(self):
         self.repository = TaskRepository()
-        self.notifications = NotificationService()
 
     async def get_all_tasks(self, user_id: str) -> List[TaskResponse]:
         tasks = await self.repository.get_by_user_id(user_id)
@@ -68,18 +68,9 @@ class TaskService:
         )
         created_task = await self.repository.create(task)
 
-        # Best-effort fan-out to followers; never fail the create on notification error.
-        if created_task.is_public:
-            try:
-                await self.notifications.create_for_followers(
-                    actor_id=user_id,
-                    type="task",
-                    title=f"New task: {created_task.title}",
-                    ref_type="task",
-                    ref_id=created_task.id,
-                )
-            except Exception:
-                pass
+        # Registry-driven, best-effort follower fan-out (content + visibility
+        # come from the task FeedSource; announce() never raises).
+        await announce(created_task)
 
         return TaskResponse.model_validate(created_task)
 

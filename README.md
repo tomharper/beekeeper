@@ -2,6 +2,22 @@
 
 A comprehensive beekeeping management application with AI-powered hive analysis, task scheduling, and inspection tracking.
 
+## Shared core: `assistive-core`
+
+The auth, follow/subscribe graph, activity feed, notifications, and shared calendar are **not beekeeping-specific** — they are provided by a shared package, **`assistive-core`**, intended to back several "assistive" vertical apps (beekeeper, plus future event-sharing, social-weather, and road-safety apps) on **one shared infrastructure** (a MongoDB cluster + Bunny CDN + a weather service).
+
+**It currently lives vendored inside this repo at [`assistive-core/`](assistive-core/)**, consumed by the Python backend (`api/`) via an editable install (`-e ../assistive-core` in `api/requirements.txt`). This is a **temporary home** — it will be split into its own repository later (history preservable via `git subtree split --prefix=assistive-core`). Until then, treat it as a standalone package and keep it **domain-agnostic**: changes there affect every vertical that will consume it.
+
+Key pieces (`assistive-core/assistive_core/`):
+- `auth/` — shared **SSO** identity (users live in a shared identity DB; one login spans verticals)
+- `follow/` — the follow/subscribe graph
+- `feed/` — a vertical-agnostic **FeedSource registry**: a vertical registers its record types to appear in the merged feed and drive notification fan-out (`assistive_core.announce(record)`), with no edits to the core
+- `notifications/`, `calendar/`, `clients/` (Bunny media + weather)
+
+The beekeeper backend registers its inspection/task feed sources in `api/app/feed_sources.py` and wires the package in via `assistive_core.init_core(...)` in `api/app/main.py`.
+
+> **Note:** the sections below predate the MongoDB migration and the `api/` · `web/` · `composeApp/` layout, and are out of date.
+
 ## Project Structure
 
 ```

@@ -7,3 +7,9 @@ build/
 
 # Local machine config (SDK path, etc.) — must not be committed
 local.properties
+
+# Python caches / editable-install artifacts (incl. vendored assistive-core)
+__pycache__/
+*.egg-info/
+.venv/
+venv/

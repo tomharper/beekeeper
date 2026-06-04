@@ -3,8 +3,7 @@ from typing import List, Optional
 
 from app.services import InspectionService
 from app.schemas import InspectionCreate, InspectionUpdate, InspectionResponse
-from app.models import User
-from app.routers.auth import get_current_user
+from assistive_core import User, get_current_user
 
 router = APIRouter(prefix="/inspections", tags=["inspections"])
 

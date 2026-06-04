@@ -9,8 +9,6 @@ from .hive import (
 )
 from .alert import Alert, AlertType, AlertSeverity
 from .recommendation import Recommendation, RecommendationType, Priority
-from .user import User
-from .follow import Follow
 from .task import (
     Task,
     TaskType,
@@ -27,27 +25,23 @@ from .inspection import (
     HealthStatus,
     ResourceLevel,
 )
-from .event import Event
-from .notification import Notification
 
 
-# Registered with init_beanie() at startup.
-DOCUMENT_MODELS = [
+# Beekeeper's own domain documents. Passed to assistive_core.init_core() as
+# `vertical_documents`; the shared social docs (Follow, Notification, Event) and
+# the identity User are wired by init_core itself.
+DOMAIN_DOCUMENTS = [
     Apiary,
     Hive,
     Inspection,
     Task,
-    User,
-    Follow,
     Alert,
     Recommendation,
-    Event,
-    Notification,
 ]
 
 
 __all__ = [
-    "DOCUMENT_MODELS",
+    "DOMAIN_DOCUMENTS",
     "Apiary",
     "ApiaryStatus",
     "Hive",
@@ -62,8 +56,6 @@ __all__ = [
     "Recommendation",
     "RecommendationType",
     "Priority",
-    "User",
-    "Follow",
     "Task",
     "TaskType",
     "TaskStatus",
@@ -76,6 +68,4 @@ __all__ = [
     "ColonyPopulation",
     "HealthStatus",
     "ResourceLevel",
-    "Event",
-    "Notification",
 ]

@@ -3,8 +3,8 @@ from typing import List, Optional
 
 from app.services import TaskService
 from app.schemas import TaskCreate, TaskUpdate, TaskResponse
-from app.models import TaskStatus, User
-from app.routers.auth import get_current_user
+from app.models import TaskStatus
+from assistive_core import User, get_current_user
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
