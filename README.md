@@ -1,6 +1,8 @@
 # Beekeeper App
 
-A comprehensive beekeeping management application with AI-powered hive analysis, task scheduling, and inspection tracking.
+A beekeeping management application — hive/apiary tracking, inspections, tasks, and AI-powered photo analysis — that doubles as a **peer knowledge-sharing network**: a commercial beekeeper's operations (inspections, feedings, treatments) are broadcast to nearby smaller beekeepers who follow them, so they can see what to do and when.
+
+It is the first **vertical** built on `assistive-core` (below).
 
 ## Shared core: `assistive-core`
 
@@ -16,226 +18,155 @@ Key pieces (`assistive-core/assistive_core/`):
 
 The beekeeper backend registers its inspection/task feed sources in `api/app/feed_sources.py` and wires the package in via `assistive_core.init_core(...)` in `api/app/main.py`.
 
-> **Note:** the sections below predate the MongoDB migration and the `api/` · `web/` · `composeApp/` layout, and are out of date.
-
 ## Project Structure
 
 ```
-beekeeperApp/
-├── beekeeperApp/          # Kotlin Multiplatform mobile & desktop app
-│   ├── shared/            # Shared KMP code
-│   ├── androidApp/        # Android application
-│   ├── desktopApp/        # Desktop JVM application
-│   └── iosApp/            # iOS application
-│
-└── beekeeper/             # Backend services
-    ├── react-app/         # React web frontend
-    └── fastapi-backend/   # FastAPI backend server
+beekeeper/
+├── api/                 # FastAPI backend (Python) — Motor/Beanie on MongoDB
+├── assistive-core/      # Shared platform package, vendored (see above)
+├── web/                 # React + TypeScript + Vite web app
+├── composeApp/          # Kotlin Multiplatform shared + mobile code (Android + iOS)
+├── iosApp/              # iOS host (SwiftUI shell around Compose)
+├── images/              # Shared image assets
+├── beekeeper/           # Legacy scaffold (superseded by api/ + web/)
+└── beekeeperApp/        # Legacy KMP scaffold (superseded by composeApp/)
 ```
 
 ## Features
 
-### Core Features
-- **Hive Management** - Track multiple hives with detailed information
-- **Task Scheduling** - Schedule and track beekeeping tasks (inspections, feeding, treatments, harvests)
-- **Inspection Tracking** - Record detailed hive inspections with photos
-- **AI-Powered Analysis** - Upload photos for AI analysis of bee health, pests, and hive conditions
-- **Weather Integration** - Get weather information for optimal inspection timing
-- **Historical Data** - Track hive conditions and performance over time
-- **Cross-Platform** - Android, iOS, Desktop, and Web support
+### Operator (beekeeper-facing)
+- **Apiary & hive management** — track multiple yards and hives
+- **Inspection tracking** — detailed records (queen, brood, health, resources) with photos; feedings & treatments are captured on the inspection
+- **Task scheduling** — inspections, feeding, treatments, harvests
+- **AI photo analysis** — Claude Vision for bee health, pests (varroa, etc.), queen presence, brood pattern, colony strength
+- **AI advisor** — Claude-backed chat
+- **Weather** — conditions for inspection timing
 
-### AI Capabilities
-- Hive health assessment
-- Pest detection (varroa mites, etc.)
-- Queen presence detection
-- Brood pattern analysis
-- Colony strength estimation
+### Social (the follow network — via `assistive-core`)
+- **SSO identity** — one account across assistive apps
+- **Follow/subscribe** — follow other beekeepers
+- **Activity feed** — public inspections & tasks from people you follow, newest first, cursor-paginated
+- **Notifications** — fan-out when someone you follow posts public activity
+- **Shared calendar** — your events plus followed users' public events
+- Per-record `isPublic` visibility (default public; only new records flow to the feed)
 
 ## Technology Stack
 
-### Mobile & Desktop App (KMP)
-- **Kotlin 2.1.0** - Primary language
-- **Kotlin Multiplatform** - Cross-platform code sharing
-- **Compose Multiplatform 1.8.1** - UI framework
-- **Ktor 3.0.2** - HTTP client
-- **SQLDelight 2.0.2** - Database
-- **Koin 4.0.1** - Dependency injection
-- **Kotlinx Serialization** - JSON serialization
-- **Kotlinx DateTime** - Date/time handling
+### Backend (`api/` + `assistive-core/`)
+- **FastAPI** + **Uvicorn** (ASGI)
+- **MongoDB** via **Motor** (async) + **Beanie** (ODM) — shared "cinefiller" cluster, per-vertical database + a shared identity DB for SSO
+- **Pydantic v2** — validation / camelCase response aliasing
+- **python-jose** — JWT auth (shared SSO signing key)
+- **Anthropic Claude** — vision + chat
+- **Bunny.net** — media/CDN storage
 
-### Web Frontend
-- **React 18** - UI library
-- **TypeScript** - Type safety
-- **Vite** - Build tool
-- **React Router** - Navigation
-- **Axios** - HTTP client
+### Web (`web/`)
+- **React 18** + **TypeScript** + **Vite** + **Tailwind CSS**
+- **React Router**, **lucide-react**, **date-fns**
 
-### Backend API
-- **FastAPI** - Python web framework
-- **Uvicorn** - ASGI server
-- **Pydantic** - Data validation
-- **Anthropic Claude** - AI vision analysis
+### Mobile (`composeApp/` + `iosApp/`)
+- **Kotlin Multiplatform** + **Compose Multiplatform** (Android + iOS)
+- **Ktor** (HTTP), **SQLDelight** (offline cache), **Koin** (DI), Kotlinx Serialization/DateTime
 
 ## Getting Started
 
 ### Prerequisites
-- JDK 11 or higher
-- Node.js 18+ (for React app)
-- Python 3.9+ (for FastAPI backend)
-- Android Studio (for Android development)
-- Xcode (for iOS development, macOS only)
+- Python 3.12 (backend)
+- Node.js 18+ (web)
+- A MongoDB connection (local `mongod`, or the shared Atlas cluster)
+- JDK + Android SDK for mobile (note: **no Gradle wrapper** — use a system `gradle`)
+- API keys: `ANTHROPIC_API_KEY`, and `BUNNY_*` if using uploads
 
-### Quick Start
-
-#### 1. Backend API
+### 1. Backend API (`api/`)
 
 ```bash
-cd beekeeper/fastapi-backend
+cd api
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt          # also installs ../assistive-core editable
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+cp .env.example .env                      # then fill in the values below
+# Required: MONGODB_URI, IDENTITY_DB, MONGODB_DB, JWT_SECRET_KEY, ANTHROPIC_API_KEY
+# Optional: BUNNY_*, WEATHER_SERVICE_URL
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Create .env file
-cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
-
-# Run the server
-python main.py
-# API will be available at http://localhost:8000
-# API docs at http://localhost:8000/docs
+uvicorn app.main:app --reload --port 2020
+# API at http://localhost:2020 · docs at http://localhost:2020/docs
 ```
 
-#### 2. Web Frontend
+Notes:
+- Users authenticate against the shared **identity DB** (`IDENTITY_DB`); domain + social data live in the **vertical DB** (`MONGODB_DB`).
+- `init_core` fails fast if `ENV=production` and `JWT_SECRET_KEY` is still the placeholder.
+
+### 2. Web (`web/`)
 
 ```bash
-cd beekeeper/react-app
-
-# Install dependencies
+cd web
 npm install
-
-# Create .env file
-cp .env.example .env
-
-# Run development server
+cp .env.example .env          # VITE_API_URL defaults to http://localhost:2020/api
 npm run dev
-# App will be available at http://localhost:3000
+# App at http://localhost:2000
 ```
 
-#### 3. Mobile/Desktop App
+### 3. Mobile (`composeApp/`)
 
 ```bash
-cd beekeeperApp
-
-# Android
-./gradlew :androidApp:installDebug
-
-# Desktop
-./gradlew :desktopApp:run
-
-# iOS (macOS only)
-# Open iosApp/iosApp.xcodeproj in Xcode and run
+# No gradlew in this repo — use a system gradle + a local.properties with sdk.dir
+gradle :composeApp:assembleDebug        # Android
+# iOS: open iosApp/ in Xcode and run
 ```
-
-## Development
-
-### Backend API Development
-
-The FastAPI backend provides REST endpoints for:
-- Hive CRUD operations
-- Inspection management
-- Task scheduling
-- Image upload and AI analysis
-- Weather data
-
-See `beekeeper/fastapi-backend/README.md` for detailed API documentation.
-
-### Mobile App Development
-
-The Kotlin Multiplatform app shares code across Android, iOS, and Desktop:
-
-- **Domain models** - `shared/src/commonMain/kotlin/com/beekeeper/app/domain/model/`
-- **UI screens** - `shared/src/commonMain/kotlin/com/beekeeper/app/presentation/screens/`
-- **Data layer** - `shared/src/commonMain/kotlin/com/beekeeper/app/data/`
-
-Platform-specific code is in `androidMain`, `iosMain`, and `desktopMain` respectively.
-
-### Web Frontend Development
-
-React app with TypeScript for web-based hive management.
-
-See `beekeeper/react-app/README.md` for details.
 
 ## Architecture
 
-### Data Flow
+### Data flow
 
 ```
-Mobile/Web UI → FastAPI Backend → AI Services (Claude Vision)
-                      ↓
-                 SQLite/Database
+Web / Mobile  ──►  FastAPI (api/)  ──►  assistive-core ──►  MongoDB (identity DB + vertical DB)
+                        │                               └─►  follow / feed registry / notifications / calendar
+                        ├──►  Anthropic Claude (vision + chat)
+                        ├──►  Bunny.net CDN (media)
+                        └──►  weather service (shared)
 ```
 
-### Mobile App Architecture
-
+### Backend layering (`api/app/`)
 ```
-Presentation Layer (Compose UI)
-       ↓
-ViewModel Layer (State Management)
-       ↓
-Domain Layer (Business Logic)
-       ↓
-Data Layer (API, Database)
+routers/  →  services/  →  repositories/  →  models/  (Beanie documents, MongoDB)
+            (domain: apiaries, hives, inspections, tasks)
+assistive_core provides: auth(SSO), follow, feed, notifications, calendar
+app/feed_sources.py registers inspection + task as FeedSources
+```
+
+### Mobile layering
+```
+Compose UI  →  ViewModel (StateFlow)  →  Repository (API-first + SQLDelight cache)  →  Ktor / SQLDelight
 ```
 
 ## Roadmap
 
-### Phase 1: Core Functionality (Current)
-- [x] Project structure setup
-- [x] Basic hive management
-- [x] Task scheduling
-- [x] Inspection tracking
-- [ ] Photo capture and storage
-- [ ] AI vision integration
+### Done
+- [x] Backend on MongoDB (Motor/Beanie), migrated off SQLAlchemy/SQLite
+- [x] Apiary/hive/inspection/task management; AI vision + advisor
+- [x] `assistive-core` extracted: SSO auth, follow graph, feed registry, notifications, calendar
+- [x] Web "Following" surface (feed, search, follow/unfollow, pagination)
+- [x] Mobile feed/follow feature (KMP)
 
-### Phase 2: Advanced Features
-- [ ] Weather API integration
-- [ ] Push notifications
-- [ ] Historical analytics and charts
-- [ ] Data export (CSV, PDF)
-- [ ] User authentication
-- [ ] Multi-user support
-
-### Phase 3: Community & Social
-- [ ] Beekeeping tips and guides
-- [ ] Community forums
-- [ ] Share inspection data
-- [ ] Best practices database
+### Next
+- [ ] Stand up a **social-weather** vertical on `assistive-core` (proves the boundary)
+- [ ] Reconcile the mobile `Inspection` model with the backend schema (field-name divergence)
+- [ ] Event fan-out via Mongo change streams (replace synchronous fan-out)
+- [ ] Split `assistive-core` into its own repository
+- [ ] Migrate hypster (events) and VRU-safety onto `assistive-core`
 
 ## Contributing
 
-Contributions are welcome! Please follow these guidelines:
-
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
+3. Make your changes (keep `assistive-core` domain-agnostic)
 4. Submit a pull request
 
 ## License
 
 [Add your license here]
 
-## Support
-
-For issues, questions, or suggestions:
-- Create an issue on GitHub
-- Contact [your-email@example.com]
-
 ## Acknowledgments
 
-- Built with Kotlin Multiplatform and Compose Multiplatform
+- Built with FastAPI, MongoDB/Beanie, React, and Kotlin/Compose Multiplatform
 - AI powered by Anthropic Claude
-- Icons from [icon source]
