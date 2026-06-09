@@ -14,40 +14,19 @@ right Python type and value:
   - ``datetime`` fields survive the BSON round-trip (millisecond precision).
   - Optional fields default to ``None`` and round-trip as ``None``.
 
-Infra note (TEST_PLAN §3): there is no ``tests/conftest.py`` yet, and
-``mongomock-motor`` is NOT installed, so these async tests target a **real**
-Mongo and **skip** the whole module when none is reachable — keeping DB-less CI
-green. Env overrides (test DBs, non-production ENV) are set at the very top,
-BEFORE importing ``app``/``assistive_core`` (whose ``Settings`` reads env at
-import time). When a shared ``conftest.py`` lands (§4.1) it can own the env
-overrides + skip guard + ``init_core`` fixture and these can be simplified, but
-the file is written to collect and run standalone today.
+Infra note (TEST_PLAN §3/§4.1): the shared ``tests/conftest.py`` owns the env
+overrides, the Mongo-reachability skip guard, and the ``init_core`` fixture
+(Beanie init across both DBs + ``FEED_SOURCES`` + per-test collection wipe). This
+module opts into that infrastructure: every async test here depends on the
+conftest ``init_core`` fixture (which skips the test when no Mongo is reachable)
+and builds documents via the conftest factory fixtures.
 """
-import os
-
-# --- Env overrides: MUST happen BEFORE importing app / assistive_core. ---------
-# assistive_core.settings.Settings reads the environment at import time, so the
-# test-DB / non-production overrides have to be in place first. ``setdefault`` so
-# a future conftest (or CI env) that already set these wins.
-os.environ.setdefault("MONGODB_DB", "beekeeper_test")
-os.environ.setdefault("IDENTITY_DB", "assistive_identity_test")
-# Keep init_core out of its production fail-fast path (placeholder JWT key).
-os.environ.setdefault("ASSISTIVE_ENV", "test")
-os.environ.setdefault("ENV", "test")
-MONGODB_URI = os.environ.setdefault("MONGODB_URI", "mongodb://localhost:27017")
-
 import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
-import pytest_asyncio
 
-from assistive_core import init_core, close_core, get_client
-from assistive_core.settings import settings
-
-from app.feed_sources import FEED_SOURCES
 from app.models import (
-    DOMAIN_DOCUMENTS,
     Apiary,
     ApiaryStatus,
     Hive,
@@ -77,61 +56,7 @@ from app.models import (
 )
 
 
-# --- Mongo-reachability guard (TEST_PLAN §3) ----------------------------------
-def _mongo_reachable(uri: str) -> bool:
-    """Return True if a Mongo at ``uri`` answers a ping quickly."""
-    try:
-        from pymongo import MongoClient
-    except Exception:
-        return False
-    try:
-        probe = MongoClient(uri, serverSelectionTimeoutMS=1000)
-        try:
-            probe.admin.command("ping")
-            return True
-        finally:
-            probe.close()
-    except Exception:
-        return False
-
-
-# Collection-level skip: if no Mongo, skip the whole module so the file still
-# collects cleanly in DB-less CI (mirrors test_main.py's per-test skip approach,
-# applied module-wide because every test here needs a live DB).
-pytestmark = pytest.mark.skipif(
-    not _mongo_reachable(MONGODB_URI),
-    reason=f"No MongoDB reachable at {MONGODB_URI}; skipping serialization round-trip suite",
-)
-
-
-# --- init_core / cleanup fixture ----------------------------------------------
-# Until tests/conftest.py exists (TEST_PLAN §4.1), this module owns the Beanie
-# lifecycle exactly as app/main.py's lifespan does. Module-scoped init, with a
-# function-scoped autouse cleanup so tests don't see each other's documents.
-@pytest_asyncio.fixture(autouse=True)
-async def _core():
-    """Initialise Beanie across both test DBs, like the app lifespan does.
-
-    Function-scoped: pytest-asyncio 0.24 runs each test in its own event loop and
-    Motor/Beanie bind their client to the running loop, so ``init_core`` must run
-    on the test's own loop (a module-scoped client raises "attached to a
-    different loop"). Collections are cleared at setup and the per-vertical test
-    DB is dropped + the memoized global client reset on teardown so state never
-    leaks across tests (TEST_PLAN §3).
-    """
-    await init_core(vertical_documents=DOMAIN_DOCUMENTS, feed_sources=FEED_SOURCES)
-    client = get_client()
-    db = client[settings.MONGODB_DB]
-    for doc in DOMAIN_DOCUMENTS:
-        await db[doc.Settings.name].delete_many({})
-    try:
-        yield
-    finally:
-        await client.drop_database(settings.MONGODB_DB)
-        await close_core()
-
-
-# --- Small factory helpers (keep individual cases short) ----------------------
+# --- Small local helpers (keep individual cases short) ------------------------
 def _uuid() -> str:
     return str(uuid.uuid4())
 
@@ -139,69 +64,6 @@ def _uuid() -> str:
 def _aware(year=2026, month=5, day=1, hour=12, minute=30, second=15) -> datetime:
     """A fixed timezone-aware UTC datetime for deterministic round-trip asserts."""
     return datetime(year, month, day, hour, minute, second, tzinfo=timezone.utc)
-
-
-def _make_apiary(**kw) -> Apiary:
-    data = dict(id=_uuid(), name="Test Apiary", location="Test Location")
-    data.update(kw)
-    return Apiary(**data)
-
-
-def _make_hive(**kw) -> Hive:
-    data = dict(
-        id=_uuid(),
-        name="Test Hive",
-        apiary_id=_uuid(),
-        last_inspected=_aware(),
-    )
-    data.update(kw)
-    return Hive(**data)
-
-
-def _make_alert(**kw) -> Alert:
-    data = dict(
-        id=_uuid(),
-        type=AlertType.GENERAL,
-        title="Test Alert",
-        message="A message",
-        timestamp=_aware(),
-    )
-    data.update(kw)
-    return Alert(**data)
-
-
-def _make_recommendation(**kw) -> Recommendation:
-    data = dict(
-        id=_uuid(),
-        hive_id=_uuid(),
-        type=RecommendationType.INFO,
-        title="Test Rec",
-        description="A description",
-    )
-    data.update(kw)
-    return Recommendation(**data)
-
-
-def _make_task(**kw) -> Task:
-    data = dict(
-        id=_uuid(),
-        title="Test Task",
-        user_id=_uuid(),
-        due_date=_aware(),
-    )
-    data.update(kw)
-    return Task(**data)
-
-
-def _make_inspection(**kw) -> Inspection:
-    data = dict(
-        id=_uuid(),
-        hive_id=_uuid(),
-        user_id=_uuid(),
-        inspection_date=_aware(),
-    )
-    data.update(kw)
-    return Inspection(**data)
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -240,10 +102,10 @@ def _assert_dt_equal(a: datetime, b: datetime):
 
 # --- id / timestamp cases -----------------------------------------------------
 @pytest.mark.asyncio
-async def test_apiary_id_is_uuid_string():
+async def test_apiary_id_is_uuid_string(init_core, apiary_factory):
     """Apiary.id is the same UUID string after round-trip (NOT an ObjectId)."""
     apiary_id = _uuid()
-    apiary = _make_apiary(id=apiary_id)
+    apiary = apiary_factory(id=apiary_id)
     await apiary.insert()
 
     fetched = await Apiary.get(apiary_id)
@@ -255,9 +117,9 @@ async def test_apiary_id_is_uuid_string():
 
 
 @pytest.mark.asyncio
-async def test_timestamps_autopopulate():
+async def test_timestamps_autopopulate(init_core, apiary_factory):
     """created_at/updated_at auto-populate as tz-aware UTC datetimes."""
-    apiary = _make_apiary()
+    apiary = apiary_factory()
     # Not setting created_at/updated_at: TimestampMixin default_factory fills them.
     await apiary.insert()
 
@@ -271,10 +133,10 @@ async def test_timestamps_autopopulate():
 
 # --- list[str] migrated fields ------------------------------------------------
 @pytest.mark.asyncio
-async def test_alert_hive_ids_roundtrips_as_list():
+async def test_alert_hive_ids_roundtrips_as_list(init_core, alert_factory):
     """Alert.hive_ids is a real list[str] (NOT a comma-joined string)."""
     hive_ids = ["h1", "h2", "h3"]
-    alert = _make_alert(hive_ids=hive_ids)
+    alert = alert_factory(hive_ids=hive_ids)
     await alert.insert()
 
     fetched = await Alert.get(alert.id)
@@ -285,9 +147,9 @@ async def test_alert_hive_ids_roundtrips_as_list():
 
 
 @pytest.mark.asyncio
-async def test_alert_hive_ids_default_empty_list():
+async def test_alert_hive_ids_default_empty_list(init_core, alert_factory):
     """Alert.hive_ids defaults to [] and round-trips as an empty list."""
-    alert = _make_alert()  # hive_ids unset -> default_factory=list
+    alert = alert_factory()  # hive_ids unset -> default_factory=list
     await alert.insert()
 
     fetched = await Alert.get(alert.id)
@@ -297,10 +159,10 @@ async def test_alert_hive_ids_default_empty_list():
 
 
 @pytest.mark.asyncio
-async def test_inspection_photos_roundtrips_as_list():
+async def test_inspection_photos_roundtrips_as_list(init_core, inspection_factory):
     """Inspection.photos is a real list[str] (NOT JSON-encoded text)."""
     photos = ["a.jpg", "b.jpg"]
-    inspection = _make_inspection(photos=photos)
+    inspection = inspection_factory(photos=photos)
     await inspection.insert()
 
     fetched = await Inspection.get(inspection.id)
@@ -311,9 +173,9 @@ async def test_inspection_photos_roundtrips_as_list():
 
 
 @pytest.mark.asyncio
-async def test_inspection_photos_default_empty_list():
+async def test_inspection_photos_default_empty_list(init_core, inspection_factory):
     """Inspection.photos defaults to [] and round-trips as an empty list."""
-    inspection = _make_inspection()  # photos unset -> default_factory=list
+    inspection = inspection_factory()  # photos unset -> default_factory=list
     await inspection.insert()
 
     fetched = await Inspection.get(inspection.id)
@@ -324,10 +186,10 @@ async def test_inspection_photos_default_empty_list():
 
 # --- enum round-trips ---------------------------------------------------------
 @pytest.mark.asyncio
-async def test_apiary_status_enum_roundtrip():
+async def test_apiary_status_enum_roundtrip(init_core, apiary_factory):
     """Each ApiaryStatus value persists/loads as the enum (stored as its str)."""
     for status in ApiaryStatus:
-        apiary = _make_apiary(status=status)
+        apiary = apiary_factory(status=status)
         await apiary.insert()
 
         fetched = await Apiary.get(apiary.id)
@@ -338,9 +200,9 @@ async def test_apiary_status_enum_roundtrip():
 
 
 @pytest.mark.asyncio
-async def test_hive_enums_roundtrip():
+async def test_hive_enums_roundtrip(init_core, hive_factory):
     """HiveStatus/ColonyStrength/QueenStatus/Temperament/HoneyStores round-trip."""
-    hive = _make_hive(
+    hive = hive_factory(
         status=HiveStatus.NEEDS_INSPECTION,
         colony_strength=ColonyStrength.WEAK,
         queen_status=QueenStatus.LAYING,
@@ -359,9 +221,9 @@ async def test_hive_enums_roundtrip():
 
 
 @pytest.mark.asyncio
-async def test_alert_enums_roundtrip():
+async def test_alert_enums_roundtrip(init_core, alert_factory):
     """AlertType/AlertSeverity round-trip; dismissed bool round-trips."""
-    alert = _make_alert(
+    alert = alert_factory(
         type=AlertType.VARROA_MITE,
         severity=AlertSeverity.CRITICAL,
         dismissed=True,
@@ -376,9 +238,9 @@ async def test_alert_enums_roundtrip():
 
 
 @pytest.mark.asyncio
-async def test_recommendation_enums_roundtrip():
+async def test_recommendation_enums_roundtrip(init_core, recommendation_factory):
     """RecommendationType/Priority round-trip."""
-    rec = _make_recommendation(
+    rec = recommendation_factory(
         type=RecommendationType.ACTION_REQUIRED,
         priority=Priority.HIGH,
     )
@@ -391,7 +253,7 @@ async def test_recommendation_enums_roundtrip():
 
 
 @pytest.mark.asyncio
-async def test_task_enums_roundtrip():
+async def test_task_enums_roundtrip(init_core, task_factory):
     """Sample across TaskType plus TaskStatus/TaskPriority/RecurrenceFrequency;
     is_public defaults True."""
     # Sample several values across the large TaskType set.
@@ -402,7 +264,7 @@ async def test_task_enums_roundtrip():
         TaskType.REQUEEN,
         TaskType.OTHER,
     ):
-        task = _make_task(
+        task = task_factory(
             task_type=task_type,
             status=TaskStatus.IN_PROGRESS,
             priority=TaskPriority.URGENT,
@@ -421,10 +283,10 @@ async def test_task_enums_roundtrip():
 
 
 @pytest.mark.asyncio
-async def test_inspection_enums_roundtrip():
+async def test_inspection_enums_roundtrip(init_core, inspection_factory):
     """All 7 inspection enums round-trip (ResourceLevel used twice); is_public
     defaults True."""
-    inspection = _make_inspection(
+    inspection = inspection_factory(
         queen_cells=QueenCellStatus.SWARM_CELLS,
         brood_pattern=BroodPattern.SPOTTY,
         temperament=ColonyTemperament.VERY_AGGRESSIVE,
@@ -450,7 +312,7 @@ async def test_inspection_enums_roundtrip():
 
 # --- datetime round-trips -----------------------------------------------------
 @pytest.mark.asyncio
-async def test_datetime_fields_roundtrip():
+async def test_datetime_fields_roundtrip(init_core, hive_factory, inspection_factory, task_factory):
     """Datetime fields persist and re-load as tz-aware UTC, equal to BSON-ms
     tolerance."""
     hive_dt = _aware(2026, 5, 2, 9, 0, 0)
@@ -459,11 +321,11 @@ async def test_datetime_fields_roundtrip():
     due_dt = _aware(2026, 5, 10, 8, 0, 0)
     completed_dt = _aware(2026, 5, 11, 17, 30, 0)
 
-    hive = _make_hive(last_inspected=hive_dt)
-    inspection = _make_inspection(
+    hive = hive_factory(last_inspected=hive_dt)
+    inspection = inspection_factory(
         inspection_date=insp_dt, next_inspection_date=next_dt
     )
-    task = _make_task(due_date=due_dt, completed_date=completed_dt)
+    task = task_factory(due_date=due_dt, completed_date=completed_dt)
     await hive.insert()
     await inspection.insert()
     await task.insert()
@@ -493,9 +355,9 @@ async def test_datetime_fields_roundtrip():
 
 # --- optional-None round-trips ------------------------------------------------
 @pytest.mark.asyncio
-async def test_optional_fields_default_none():
+async def test_optional_fields_default_none(init_core, inspection_factory, task_factory):
     """Optional fields are None when unset and round-trip as None."""
-    inspection = _make_inspection()  # leave optionals unset
+    inspection = inspection_factory()  # leave optionals unset
     await inspection.insert()
 
     fetched = await Inspection.get(inspection.id)
@@ -505,7 +367,7 @@ async def test_optional_fields_default_none():
     assert fetched.weather_conditions is None
     assert fetched.next_inspection_date is None
 
-    task = _make_task()  # leave optionals unset
+    task = task_factory()  # leave optionals unset
     await task.insert()
 
     fetched_task = await Task.get(task.id)

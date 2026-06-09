@@ -52,8 +52,10 @@ import pytest
 import pytest_asyncio
 
 # Imported AFTER the env overrides above so assistive_core.settings reads the
-# test values at import time.
-from assistive_core import init_core, close_core
+# test values at import time. ``init_core`` is aliased to ``_core_init`` so the
+# session fixture below can call the real assistive-core function without the
+# ``init_core`` *fixture* (defined later) shadowing it in this module namespace.
+from assistive_core import init_core as _core_init, close_core
 from assistive_core import db as core_db
 from app.models import (
     DOMAIN_DOCUMENTS,
@@ -140,89 +142,49 @@ requires_mongo = pytest.mark.skipif(
 
 
 # ---------------------------------------------------------------------------
-# 4. init_core fixture — Beanie init across both DBs, once per session.
+# 4. init_core fixture — Beanie init across both DBs, per test.
 # ---------------------------------------------------------------------------
-@pytest_asyncio.fixture(scope="session")
-async def init_core_session():
-    """Initialise Beanie against the *test* databases for the whole session.
+async def _wipe_test_data():
+    """Drop every domain document collection + the identity users collection."""
+    for model in _DOMAIN_DOCUMENTS:
+        await model.get_motor_collection().delete_many({})
+    client = core_db.get_client()
+    await client[TEST_IDENTITY_DB]["users"].delete_many({})
 
-    Calls ``init_core`` exactly as ``app/main.py`` lifespan does — wiring the
-    shared identity DB (User) and the per-vertical DB (core social docs +
-    ``DOMAIN_DOCUMENTS``), and registering ``FEED_SOURCES``. This also bootstraps
+
+@pytest_asyncio.fixture
+async def init_core():
+    """Initialise Beanie exactly as ``app/main.py`` lifespan does, per test.
+
+    FUNCTION-scoped on purpose: pytest-asyncio 0.24 gives each test its own event
+    loop and Motor/Beanie bind their client to the running loop, so a
+    session/module-scoped client raises "attached to a different loop". Each test
+    re-inits on its own loop, runs against a clean database (collections wiped
+    before and after), and the shared assistive-core client is closed/reset on
+    teardown.
+
+    Wires the shared identity DB (User) + per-vertical DB (core social docs +
+    ``DOMAIN_DOCUMENTS``) and registers ``FEED_SOURCES``; this also bootstraps
     every model's declared ``Settings.indexes`` (relied on by test_indexes.py).
 
-    Skips the entire dependent async suite when no Mongo is reachable.
-
-    Teardown (§6): close the assistive-core global client, reset its memoised
-    ``_client``, then drop both test databases so a re-run starts clean.
+    Skips when no Mongo is reachable so the dependent async suite stays green in
+    DB-less CI. Yields the live Motor client for tests wanting raw collections.
+    Depend on it directly (``async def test_x(init_core): ...``) or via
+    ``@pytest.mark.usefixtures("init_core")``.
     """
     if not MONGO_AVAILABLE:
         pytest.skip(f"No MongoDB reachable at {MONGODB_URI}")
 
-    await init_core(
+    await _core_init(
         vertical_documents=_DOMAIN_DOCUMENTS,
         feed_sources=FEED_SOURCES,
     )
-
-    yield core_db.get_client()
-
-    # --- session teardown ---
-    client = core_db.get_client()
+    await _wipe_test_data()
     try:
-        await client.drop_database(TEST_VERTICAL_DB)
-        await client.drop_database(TEST_IDENTITY_DB)
+        yield core_db.get_client()
+        await _wipe_test_data()
     finally:
         await close_core()  # closes + nulls the module-global _client
-
-
-@pytest_asyncio.fixture
-async def init_core(init_core_session):
-    """Function-scoped entry point most async tests depend on.
-
-    Depending on this fixture (directly or via
-    ``@pytest.mark.usefixtures("init_core")``) guarantees Beanie is initialised
-    AND that collections are cleared before the test body runs (the autouse
-    ``_clean_db`` fixture, ordered after this, performs the wipe). Yields the
-    live Motor client for tests that want raw collection access.
-    """
-    return init_core_session
-
-
-# ---------------------------------------------------------------------------
-# 5. Per-test cleanup — drop domain + identity collections between tests.
-# ---------------------------------------------------------------------------
-@pytest_asyncio.fixture(autouse=True)
-async def _clean_db(request):
-    """Wipe all test collections before AND after each async test.
-
-    Only runs when the test actually touches Mongo (i.e. the session was
-    initialised); pure route tests that never request ``init_core`` are skipped
-    here so they incur no DB cost and don't error when Mongo is absent.
-
-    Drops documents (not whole DBs) to preserve the indexes ``init_core`` built
-    once at session start, per TEST_PLAN §3.5.
-    """
-    needs_db = (
-        MONGO_AVAILABLE
-        and core_db._client is not None
-        and (
-            "init_core" in request.fixturenames
-            or "init_core_session" in request.fixturenames
-        )
-    )
-
-    async def _wipe():
-        for model in _DOMAIN_DOCUMENTS:
-            await model.get_motor_collection().delete_many({})
-        # Identity DB users collection (shared SSO docs created by some tests).
-        client = core_db.get_client()
-        await client[TEST_IDENTITY_DB]["users"].delete_many({})
-
-    if needs_db:
-        await _wipe()
-    yield
-    if needs_db:
-        await _wipe()
 
 
 # ---------------------------------------------------------------------------

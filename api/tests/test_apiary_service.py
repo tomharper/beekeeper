@@ -17,126 +17,36 @@ Motor/Beanie move introduced:
 
 Infra note: the shared ``tests/conftest.py`` (plan §4.1) owns env overrides, the
 Mongo skip guard, the ``init_core`` fixture and per-test cleanup, plus
-``make_apiary`` / ``make_hive`` factory helpers. This file is intentionally
-self-contained anyway (mirroring tests/test_apiary_hive_repositories.py) so it
-COLLECTS and RUNS cleanly on its own even if the conftest is absent or its
-factories change:
+``make_apiary`` / ``make_hive`` factory helpers. This file now depends on that
+conftest ``init_core`` fixture for Beanie init + per-test cleanup (it wipes all
+domain collections before and after each test, so the local apiaries/hives
+cleanup is no longer needed). The skip-when-no-Mongo behaviour is carried by
+``init_core`` itself (it ``pytest.skip``s when no Mongo is reachable).
 
-  * Env overrides are set at the very top, BEFORE importing ``app`` /
-    ``assistive_core`` (their settings read os.environ at import time). We use
-    ``setdefault`` so the conftest / CI env wins.
-  * A Mongo-reachability guard skips the whole module when no Mongo is reachable
-    (``mongomock-motor`` is NOT installed), matching tests/test_main.py and the
-    plan's "skip the async suite when Mongo is unreachable" approach.
-  * pytest-asyncio 0.24.0 gives each test its own event loop, so the
-    ``initialized_db`` fixture is FUNCTION-scoped (a module/session-scoped Motor
-    client would bind to a different loop and raise "attached to a different
-    loop"). Each async test carries an explicit ``@pytest.mark.asyncio`` marker
-    since the repo ships no ``asyncio_mode=auto`` ini.
+  * The local ``make_apiary`` / ``make_hive`` factories are KEPT (not swapped for
+    the conftest factory fixtures): this file's ``make_apiary`` sets
+    ``latitude``/``longitude`` and its ``make_hive`` sets a tz-aware
+    ``last_inspected``, which the conftest factories do not, so keeping them
+    preserves the exact documents these tests persist.
   * Beanie Documents can't be instantiated before init_beanie runs, so the
     ``make_apiary`` / ``make_hive`` builders are only called inside test bodies
-    (after ``initialized_db`` has run).
+    (after ``init_core`` has run).
 """
-import os
-
-# --- Env overrides: MUST happen before importing app/assistive_core. ---
-# assistive_core.settings.Settings reads env at import time; point the suite at
-# dedicated *_test databases and keep init_core out of its production fail-fast
-# path (placeholder JWT key). setdefault so the conftest / CI env that already
-# set these wins.
-os.environ.setdefault("MONGODB_DB", "beekeeper_test")
-os.environ.setdefault("IDENTITY_DB", "assistive_identity_test")
-os.environ.setdefault("ASSISTIVE_ENV", "test")
-os.environ.setdefault("ENV", "test")
-MONGODB_URI = os.environ.setdefault("MONGODB_URI", "mongodb://localhost:27017")
-
 import uuid
 from datetime import datetime, timezone
 
 import pytest
-import pytest_asyncio
 
+from fastapi import HTTPException, status
 
-def _mongo_reachable(uri: str) -> bool:
-    """Return True if a Mongo at ``uri`` answers a ping quickly.
-
-    These service tests hit a live Mongo (no mongomock-motor installed). When
-    none is reachable (e.g. DB-less CI) we skip the module rather than error, so
-    collection stays green.
-    """
-    try:
-        from pymongo import MongoClient
-    except Exception:
-        return False
-    try:
-        probe = MongoClient(uri, serverSelectionTimeoutMS=1000)
-        try:
-            probe.admin.command("ping")
-            return True
-        finally:
-            probe.close()
-    except Exception:
-        return False
-
-
-# Collection-time skip guard: if no Mongo, skip the entire module so the file
-# still imports/collects cleanly without a live DB.
-if not _mongo_reachable(MONGODB_URI):
-    pytest.skip(
-        f"No MongoDB reachable at {MONGODB_URI}; skipping ApiaryService suite "
-        "(mongomock-motor not installed).",
-        allow_module_level=True,
-    )
-
-# Imported only after the skip guard + env overrides so a DB-less collection
-# does not pay the import cost / side effects.
-from fastapi import HTTPException, status  # noqa: E402
-
-from app.models import Apiary, ApiaryStatus, Hive, HiveStatus  # noqa: E402
-from app.models import DOMAIN_DOCUMENTS  # noqa: E402
-from app.feed_sources import FEED_SOURCES  # noqa: E402
-from app.repositories.apiary_repository import ApiaryRepository  # noqa: E402
-from app.repositories.hive_repository import HiveRepository  # noqa: E402
-from app.schemas import ApiaryCreate, ApiaryResponse, ApiaryUpdate  # noqa: E402
-from app.services.apiary_service import ApiaryService  # noqa: E402
-from assistive_core import init_core, close_core, get_client  # noqa: E402
-from assistive_core.settings import settings  # noqa: E402
+from app.models import Apiary, ApiaryStatus, Hive, HiveStatus
+from app.repositories.apiary_repository import ApiaryRepository
+from app.repositories.hive_repository import HiveRepository
+from app.schemas import ApiaryCreate, ApiaryResponse, ApiaryUpdate
+from app.services.apiary_service import ApiaryService
 
 
 # --- Fixtures ------------------------------------------------------------------
-
-
-@pytest_asyncio.fixture
-async def initialized_db():
-    """Initialise Beanie exactly as app/main.py's lifespan does.
-
-    Function-scoped: pytest-asyncio 0.24 gives each test its own event loop and
-    Motor/Beanie bind their client to the running loop, so init_core must run on
-    the test's own loop (a module-scoped client raises "attached to a different
-    loop"). Tears down the shared motor client after each test (resetting
-    assistive_core's module-global _client).
-    """
-    await init_core(
-        vertical_documents=DOMAIN_DOCUMENTS,
-        feed_sources=FEED_SOURCES,
-    )
-    yield
-    await close_core()
-
-
-@pytest_asyncio.fixture(autouse=True)
-async def clean_collections(initialized_db):
-    """Drop the apiaries/hives collections before and after each test.
-
-    Keeps the Counter / .count() aggregations deterministic by guaranteeing the
-    only documents present are the ones a test creates.
-    """
-    db = get_client()[settings.MONGODB_DB]
-    await db["apiaries"].delete_many({})
-    await db["hives"].delete_many({})
-    yield
-    await db["apiaries"].delete_many({})
-    await db["hives"].delete_many({})
 
 
 @pytest.fixture
@@ -155,7 +65,7 @@ def hive_repo() -> HiveRepository:
 
 
 # --- Factory helpers -----------------------------------------------------------
-# Only invoked inside test bodies (after init_beanie has run via initialized_db);
+# Only invoked inside test bodies (after init_beanie has run via init_core);
 # Beanie Documents cannot be instantiated before init.
 
 
@@ -191,7 +101,7 @@ def make_hive(apiary_id: str, **overrides) -> Hive:
 
 
 @pytest.mark.asyncio
-async def test_get_all_apiaries_hive_counts(service, apiary_repo, hive_repo):
+async def test_get_all_apiaries_hive_counts(init_core, service, apiary_repo, hive_repo):
     """get_all_apiaries reports the Counter-aggregated hive_count per apiary,
     including 0 for an apiary that has no hives."""
     apiary_a = await apiary_repo.create(make_apiary(name="Apiary A"))
@@ -213,7 +123,7 @@ async def test_get_all_apiaries_hive_counts(service, apiary_repo, hive_repo):
 
 
 @pytest.mark.asyncio
-async def test_get_apiary_counts_hives(service, apiary_repo, hive_repo):
+async def test_get_apiary_counts_hives(init_core, service, apiary_repo, hive_repo):
     """get_apiary returns the correct hive_count via Hive.find(...).count()."""
     apiary = await apiary_repo.create(make_apiary())
     other = await apiary_repo.create(make_apiary(name="Other"))
@@ -231,7 +141,7 @@ async def test_get_apiary_counts_hives(service, apiary_repo, hive_repo):
 
 
 @pytest.mark.asyncio
-async def test_create_apiary_starts_with_zero_hives(service):
+async def test_create_apiary_starts_with_zero_hives(init_core, service):
     """A freshly created apiary reports hive_count == 0."""
     apiary_id = str(uuid.uuid4())
     create_data = ApiaryCreate(
@@ -256,7 +166,7 @@ async def test_create_apiary_starts_with_zero_hives(service):
 
 
 @pytest.mark.asyncio
-async def test_get_apiary_not_found_raises_404(service):
+async def test_get_apiary_not_found_raises_404(init_core, service):
     """Unknown id -> HTTPException 404 from get_apiary."""
     with pytest.raises(HTTPException) as exc_info:
         await service.get_apiary(str(uuid.uuid4()))
@@ -264,7 +174,7 @@ async def test_get_apiary_not_found_raises_404(service):
 
 
 @pytest.mark.asyncio
-async def test_update_apiary_not_found_raises_404(service):
+async def test_update_apiary_not_found_raises_404(init_core, service):
     """Unknown id -> HTTPException 404 from update_apiary."""
     with pytest.raises(HTTPException) as exc_info:
         await service.update_apiary(
@@ -274,7 +184,7 @@ async def test_update_apiary_not_found_raises_404(service):
 
 
 @pytest.mark.asyncio
-async def test_delete_apiary_not_found_raises_404(service):
+async def test_delete_apiary_not_found_raises_404(init_core, service):
     """Unknown id -> HTTPException 404 from delete_apiary."""
     with pytest.raises(HTTPException) as exc_info:
         await service.delete_apiary(str(uuid.uuid4()))

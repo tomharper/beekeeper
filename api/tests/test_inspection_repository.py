@@ -8,67 +8,25 @@ plus CRUD.
 
 Infra note
 ----------
-At the time this file was written there was **no** ``tests/conftest.py`` yet (the
-test plan lists it as P0 infra to build first). To stay importable and to collect
-+ run cleanly without that infra, this file is self-contained:
+The shared ``tests/conftest.py`` now owns the async-Mongo lifecycle: the test-DB
+env overrides, the Mongo-reachability skip guard, ``asyncio_mode=auto``, and the
+function-scoped ``init_core`` fixture (Beanie init across both DBs + per-test
+collection wipe). Each DB test here depends on that ``init_core`` fixture rather
+than a local bootstrap.
 
-  * It sets the test-DB env overrides **before** importing ``assistive_core`` /
-    ``app`` (``assistive_core.settings`` reads env at import time).
-  * It pings Mongo once at import; if Mongo is unreachable the whole module is
-    skipped (``pytest.skip(allow_module_level=True)``), exactly the behaviour the
-    plan prescribes (mongomock-motor is not installed, so a real Mongo is needed).
-  * Each test runs inside its own event loop (pytest-asyncio 0.24 default) and an
-    autouse fixture calls ``init_core(...)`` on that loop and clears the
-    ``inspections`` collection for isolation.
-
-If/when ``tests/conftest.py`` lands with shared ``init_core`` / cleanup / factory
-fixtures, the bootstrap block here can be deleted and the tests should bind to the
-shared fixtures unchanged (they only depend on a live Beanie + a clean
-collection). See followups.
+A local ``make_inspection`` factory is kept (rather than reusing the conftest
+``inspection_factory``) because these tests assert on specific defaults
+(``user_id == "user-1"`` / ``hive_id == "hive-1"``) and build with a *tz-aware*
+``inspection_date`` so the naive-UTC round-trip handled by ``_as_utc`` compares
+equal — the conftest factory uses random-uuid ids and ``utcnow()`` instead.
 """
-import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
-# --- Env overrides MUST precede the assistive_core/app imports (read at import time) ---
-os.environ.setdefault("MONGODB_DB", "beekeeper_test")
-os.environ.setdefault("IDENTITY_DB", "assistive_identity_test")
-os.environ.setdefault("MONGODB_URI", os.getenv("MONGODB_URI", "mongodb://localhost:27017"))
-# Never let init_core fail-fast on the placeholder JWT key during tests.
-os.environ.setdefault("ASSISTIVE_ENV", "test")
-os.environ.setdefault("ENV", "test")
-
-from assistive_core.db import init_core, close_core, get_client  # noqa: E402
-from assistive_core.settings import settings  # noqa: E402
 from app.models import Inspection  # noqa: E402
-from app.models import DOMAIN_DOCUMENTS  # noqa: E402
-from app.feed_sources import FEED_SOURCES  # noqa: E402
 from app.repositories.inspection_repository import InspectionRepository  # noqa: E402
-
-
-# --- Mongo reachability guard: skip the whole module if no live Mongo. ---
-def _mongo_available() -> bool:
-    try:
-        import pymongo
-
-        c = pymongo.MongoClient(
-            settings.MONGODB_URI, serverSelectionTimeoutMS=750
-        )
-        c.admin.command("ping")
-        c.close()
-        return True
-    except Exception:
-        return False
-
-
-if not _mongo_available():
-    pytest.skip(
-        "MongoDB not reachable at MONGODB_URI; skipping async repository tests "
-        "(mongomock-motor is not installed).",
-        allow_module_level=True,
-    )
 
 
 # --------------------------------------------------------------------------- #
@@ -77,23 +35,6 @@ if not _mongo_available():
 @pytest.fixture
 def repo() -> InspectionRepository:
     return InspectionRepository()
-
-
-@pytest.fixture(autouse=True)
-async def _init_and_clean():
-    """Initialise Beanie on the current test's event loop and isolate state.
-
-    pytest-asyncio 0.24 runs each test in its own loop; Motor/Beanie bind to the
-    running loop, so we (idempotently) re-init per test. We clear the inspections
-    collection before and after each test for isolation.
-    """
-    await init_core(vertical_documents=DOMAIN_DOCUMENTS, feed_sources=FEED_SOURCES)
-    await Inspection.get_motor_collection().delete_many({})
-    try:
-        yield
-    finally:
-        await Inspection.get_motor_collection().delete_many({})
-        await close_core()
 
 
 # --------------------------------------------------------------------------- #
@@ -141,7 +82,7 @@ def make_inspection(
 # CRUD
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_create_and_get_by_id(repo: InspectionRepository):
+async def test_create_and_get_by_id(init_core, repo: InspectionRepository):
     insp = make_inspection()
     created = await repo.create(insp)
     assert created.id == insp.id
@@ -154,12 +95,12 @@ async def test_create_and_get_by_id(repo: InspectionRepository):
 
 
 @pytest.mark.asyncio
-async def test_get_by_id_missing_returns_none(repo: InspectionRepository):
+async def test_get_by_id_missing_returns_none(init_core, repo: InspectionRepository):
     assert await repo.get_by_id(str(uuid.uuid4())) is None
 
 
 @pytest.mark.asyncio
-async def test_update_persists(repo: InspectionRepository):
+async def test_update_persists(init_core, repo: InspectionRepository):
     insp = await repo.create(make_inspection())
     insp.notes = "varroa check next week"
     insp.duration_minutes = 25
@@ -172,7 +113,7 @@ async def test_update_persists(repo: InspectionRepository):
 
 
 @pytest.mark.asyncio
-async def test_delete_removes(repo: InspectionRepository):
+async def test_delete_removes(init_core, repo: InspectionRepository):
     insp = await repo.create(make_inspection())
     assert await repo.get_by_id(insp.id) is not None
 
@@ -184,7 +125,7 @@ async def test_delete_removes(repo: InspectionRepository):
 # Sorted listing / filters
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_get_all_sorted_desc(repo: InspectionRepository):
+async def test_get_all_sorted_desc(init_core, repo: InspectionRepository):
     d_old = _utc(2026, 1, 1)
     d_mid = _utc(2026, 2, 1)
     d_new = _utc(2026, 3, 1)
@@ -199,7 +140,7 @@ async def test_get_all_sorted_desc(repo: InspectionRepository):
 
 
 @pytest.mark.asyncio
-async def test_get_by_user_id_filters_and_sorts(repo: InspectionRepository):
+async def test_get_by_user_id_filters_and_sorts(init_core, repo: InspectionRepository):
     d_old = _utc(2026, 1, 1)
     d_new = _utc(2026, 2, 1)
     await repo.create(make_inspection(user_id="user-A", inspection_date=d_old))
@@ -213,7 +154,7 @@ async def test_get_by_user_id_filters_and_sorts(repo: InspectionRepository):
 
 
 @pytest.mark.asyncio
-async def test_get_by_hive_id_filters_and_sorts(repo: InspectionRepository):
+async def test_get_by_hive_id_filters_and_sorts(init_core, repo: InspectionRepository):
     d_old = _utc(2026, 1, 1)
     d_new = _utc(2026, 2, 1)
     await repo.create(make_inspection(hive_id="hive-A", inspection_date=d_old))
@@ -227,7 +168,7 @@ async def test_get_by_hive_id_filters_and_sorts(repo: InspectionRepository):
 
 
 @pytest.mark.asyncio
-async def test_get_by_hive_and_user(repo: InspectionRepository):
+async def test_get_by_hive_and_user(init_core, repo: InspectionRepository):
     target = _utc(2026, 3, 1)
     # Matches both filters.
     match = await repo.create(
@@ -244,7 +185,7 @@ async def test_get_by_hive_and_user(repo: InspectionRepository):
 
 
 @pytest.mark.asyncio
-async def test_get_latest_for_hive(repo: InspectionRepository):
+async def test_get_latest_for_hive(init_core, repo: InspectionRepository):
     d_old = _utc(2026, 1, 1)
     d_new = _utc(2026, 6, 1)
     await repo.create(make_inspection(hive_id="hive-L", inspection_date=d_old))
@@ -263,7 +204,7 @@ async def test_get_latest_for_hive(repo: InspectionRepository):
 
 
 @pytest.mark.asyncio
-async def test_get_latest_for_hive_none_when_empty(repo: InspectionRepository):
+async def test_get_latest_for_hive_none_when_empty(init_core, repo: InspectionRepository):
     await repo.create(make_inspection(hive_id="hive-has-data"))
     assert await repo.get_latest_for_hive("hive-no-data") is None
 
@@ -272,7 +213,7 @@ async def test_get_latest_for_hive_none_when_empty(repo: InspectionRepository):
 # get_recent
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_get_recent_limit(repo: InspectionRepository):
+async def test_get_recent_limit(init_core, repo: InspectionRepository):
     base = _utc(2026, 1, 1)
     # 5 inspections, ascending dates so newest is day 5.
     for i in range(5):
@@ -288,7 +229,7 @@ async def test_get_recent_limit(repo: InspectionRepository):
 
 
 @pytest.mark.asyncio
-async def test_get_recent_default_limit_10(repo: InspectionRepository):
+async def test_get_recent_default_limit_10(init_core, repo: InspectionRepository):
     base = _utc(2026, 1, 1)
     for i in range(15):
         await repo.create(
@@ -306,7 +247,7 @@ async def test_get_recent_default_limit_10(repo: InspectionRepository):
 # get_feed: In(user_ids) + is_public + limit + before cursor
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_get_feed_only_public(repo: InspectionRepository):
+async def test_get_feed_only_public(init_core, repo: InspectionRepository):
     pub = await repo.create(make_inspection(user_id="user-F", is_public=True))
     await repo.create(make_inspection(user_id="user-F", is_public=False))
 
@@ -317,7 +258,7 @@ async def test_get_feed_only_public(repo: InspectionRepository):
 
 
 @pytest.mark.asyncio
-async def test_get_feed_in_user_ids(repo: InspectionRepository):
+async def test_get_feed_in_user_ids(init_core, repo: InspectionRepository):
     a = await repo.create(make_inspection(user_id="user-A"))
     b = await repo.create(make_inspection(user_id="user-B"))
     await repo.create(make_inspection(user_id="user-C"))  # not in the list
@@ -329,7 +270,7 @@ async def test_get_feed_in_user_ids(repo: InspectionRepository):
 
 
 @pytest.mark.asyncio
-async def test_get_feed_limit(repo: InspectionRepository):
+async def test_get_feed_limit(init_core, repo: InspectionRepository):
     base = _utc(2026, 1, 1)
     for i in range(5):
         await repo.create(
@@ -343,7 +284,7 @@ async def test_get_feed_limit(repo: InspectionRepository):
 
 
 @pytest.mark.asyncio
-async def test_get_feed_before_cursor(repo: InspectionRepository):
+async def test_get_feed_before_cursor(init_core, repo: InspectionRepository):
     base = _utc(2026, 1, 1)
     dates = [base + timedelta(days=i) for i in range(6)]  # day0..day5
     for d in dates:

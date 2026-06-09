@@ -18,38 +18,23 @@ What this file covers (the migration-affected query/mutation logic):
 
 Infra notes
 -----------
-There is no ``tests/conftest.py`` yet (TEST_PLAN §4.1 schedules it as P0 infra to
-build first). Until it exists, this file is fully self-contained: it sets the
-test-DB env overrides BEFORE importing ``assistive_core`` (which reads env at
-import time), initialises Beanie via ``init_core`` exactly as the app lifespan
-does, and cleans the ``tasks`` collection between tests.
+This file now uses the shared ``tests/conftest.py`` infrastructure (TEST_PLAN
+§4.1): conftest owns the test-DB env overrides, the Mongo-reachability skip, and
+the ``init_core`` fixture (Beanie init across both DBs + per-test wipe of every
+domain + identity collection, before AND after each test). DB tests depend on
+``init_core`` directly — its built-in wipe gives the per-test isolation these
+repository assertions need, so a stray task from a prior test can't skew counts.
 
-It is written to be conftest-compatible: env vars use ``setdefault`` so a future
-conftest (or CI env) wins, and ``pytest-asyncio==0.24.0`` is unconfigured so each
-async test is marked explicitly with ``@pytest.mark.asyncio`` (rather than
-relying on ``asyncio_mode=auto``). If a conftest later adds that mode + shared
-fixtures, the explicit markers remain harmless.
-
-When no Mongo is reachable the whole module is skipped (collection-level) so a
-DB-less CI run stays green, matching ``tests/test_main.py``.
+``pytest-asyncio==0.24.0`` runs in ``asyncio_mode=auto`` (set by conftest); the
+explicit ``@pytest.mark.asyncio`` markers below remain harmless.
 """
-import os
-
-# --- Env overrides: MUST happen before importing assistive_core / app.* ---
-# assistive_core.settings.Settings reads the environment at import time, so the
-# test-DB redirect has to be in place first. setdefault => a conftest/CI wins.
-os.environ.setdefault("MONGODB_DB", "beekeeper_test")
-os.environ.setdefault("IDENTITY_DB", "assistive_identity_test")
-# Keep init_core out of its production fail-fast path (placeholder JWT key).
-os.environ.setdefault("ASSISTIVE_ENV", "test")
-os.environ.setdefault("ENV", "test")
-MONGODB_URI = os.environ.setdefault("MONGODB_URI", "mongodb://localhost:27017")
-
 import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
-import pytest_asyncio
+
+from app.models import Task, TaskStatus
+from app.repositories.task_repository import TaskRepository
 
 
 def _utcnow() -> datetime:
@@ -69,74 +54,9 @@ def _as_utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
-def _mongo_reachable(uri: str) -> bool:
-    """True if a Mongo at ``uri`` answers a ping quickly, else False.
-
-    Uses a short serverSelection timeout so a DB-less run skips fast instead of
-    hanging. Mirrors the guard in ``tests/test_main.py``.
-    """
-    try:
-        from pymongo import MongoClient
-    except Exception:
-        return False
-    try:
-        probe = MongoClient(uri, serverSelectionTimeoutMS=1000)
-        try:
-            probe.admin.command("ping")
-            return True
-        finally:
-            probe.close()
-    except Exception:
-        return False
-
-
-# Collection-level skip: if there's no Mongo, none of these async tests can run.
-# This keeps DB-less CI green while the file still collects cleanly.
-pytestmark = pytest.mark.skipif(
-    not _mongo_reachable(MONGODB_URI),
-    reason=f"No MongoDB reachable at {MONGODB_URI}; skipping TaskRepository async suite",
-)
-
-# Imports that pull in assistive_core happen AFTER the env overrides above.
-from assistive_core import close_core, init_core  # noqa: E402
-
-from app.feed_sources import FEED_SOURCES  # noqa: E402
-from app.models import DOMAIN_DOCUMENTS, Task, TaskStatus  # noqa: E402
-from app.repositories.task_repository import TaskRepository  # noqa: E402
-
-
 # --------------------------------------------------------------------------- #
 # Fixtures
 # --------------------------------------------------------------------------- #
-@pytest_asyncio.fixture
-async def initialized_core():
-    """Initialise Beanie across both DBs exactly as the app lifespan does.
-
-    Function-scoped: pytest-asyncio 0.24 runs each test in its own event loop and
-    Motor/Beanie bind their client to the running loop, so ``init_core`` must run
-    on the test's own loop (a module/session-scoped client would raise
-    "attached to a different loop"). ``close_core`` resets the shared client
-    global on teardown so the client does not leak across tests.
-    """
-    await init_core(vertical_documents=DOMAIN_DOCUMENTS, feed_sources=FEED_SOURCES)
-    yield
-    await close_core()
-
-
-@pytest_asyncio.fixture
-async def clean_tasks(initialized_core):
-    """Drop the ``tasks`` collection before AND after each test for isolation.
-
-    Repository tests assert on data the test itself seeds; a stray task from a
-    prior test (or from dev seed data) would break those counts. Dropping the
-    single collection is cheaper than re-init and keeps other collections /
-    indexes intact.
-    """
-    await Task.get_motor_collection().delete_many({})
-    yield
-    await Task.get_motor_collection().delete_many({})
-
-
 @pytest.fixture
 def repo() -> TaskRepository:
     return TaskRepository()
@@ -177,7 +97,7 @@ def make_task(
 # CRUD
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_create_get_update_delete(clean_tasks, repo):
+async def test_create_get_update_delete(init_core, repo):
     """Full CRUD round-trip; ``get_by_id`` on a missing id returns ``None``."""
     task = make_task(title="Original")
     created = await repo.create(task)
@@ -205,7 +125,7 @@ async def test_create_get_update_delete(clean_tasks, repo):
 # Equality filters
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_get_by_user_id(clean_tasks, repo):
+async def test_get_by_user_id(init_core, repo):
     await repo.create(make_task(user_id="user-a", title="A1"))
     await repo.create(make_task(user_id="user-a", title="A2"))
     await repo.create(make_task(user_id="user-b", title="B1"))
@@ -217,7 +137,7 @@ async def test_get_by_user_id(clean_tasks, repo):
 
 
 @pytest.mark.asyncio
-async def test_get_by_hive_id(clean_tasks, repo):
+async def test_get_by_hive_id(init_core, repo):
     await repo.create(make_task(hive_id="hive-1", title="H1"))
     await repo.create(make_task(hive_id="hive-2", title="H2"))
     await repo.create(make_task(hive_id=None, title="None"))
@@ -229,7 +149,7 @@ async def test_get_by_hive_id(clean_tasks, repo):
 
 
 @pytest.mark.asyncio
-async def test_get_by_apiary_id(clean_tasks, repo):
+async def test_get_by_apiary_id(init_core, repo):
     await repo.create(make_task(apiary_id="ap-1", title="AP1"))
     await repo.create(make_task(apiary_id="ap-1", title="AP1b"))
     await repo.create(make_task(apiary_id="ap-2", title="AP2"))
@@ -240,7 +160,7 @@ async def test_get_by_apiary_id(clean_tasks, repo):
 
 
 @pytest.mark.asyncio
-async def test_get_by_status(clean_tasks, repo):
+async def test_get_by_status(init_core, repo):
     """Filters by user_id AND a given TaskStatus (other users/statuses excluded)."""
     await repo.create(make_task(user_id="u1", status=TaskStatus.PENDING, title="p1"))
     await repo.create(make_task(user_id="u1", status=TaskStatus.COMPLETED, title="c1"))
@@ -256,7 +176,7 @@ async def test_get_by_status(clean_tasks, repo):
 # In(...) status filter
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_get_pending_and_overdue(clean_tasks, repo):
+async def test_get_pending_and_overdue(init_core, repo):
     """Returns only PENDING/OVERDUE/IN_PROGRESS (In), excl. COMPLETED/CANCELLED,
     sorted by due_date ascending."""
     now = _utcnow()
@@ -298,7 +218,7 @@ async def test_get_pending_and_overdue(clean_tasks, repo):
 # Datetime windows
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_get_upcoming_window(clean_tasks, repo):
+async def test_get_upcoming_window(init_core, repo):
     """get_upcoming(days=7): due_date <= now+7d and status in {PENDING,IN_PROGRESS};
     excludes beyond-window and COMPLETED."""
     now = _utcnow()
@@ -327,7 +247,7 @@ async def test_get_upcoming_window(clean_tasks, repo):
 
 
 @pytest.mark.asyncio
-async def test_get_upcoming_custom_days(clean_tasks, repo):
+async def test_get_upcoming_custom_days(init_core, repo):
     """days=1 narrows the window: a task due in 5 days drops out."""
     now = _utcnow()
     await repo.create(
@@ -346,7 +266,7 @@ async def test_get_upcoming_custom_days(clean_tasks, repo):
 
 
 @pytest.mark.asyncio
-async def test_get_overdue(clean_tasks, repo):
+async def test_get_overdue(init_core, repo):
     """get_overdue: due_date < now and status in {PENDING,IN_PROGRESS}, sorted by
     due_date; excludes future and COMPLETED."""
     now = _utcnow()
@@ -378,7 +298,7 @@ async def test_get_overdue(clean_tasks, repo):
 # Feed: is_public + In(user_ids) + limit + before cursor
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_get_feed_public_in_users_limit_before(clean_tasks, repo):
+async def test_get_feed_public_in_users_limit_before(init_core, repo):
     """get_feed: only is_public tasks from In(user_ids), newest-first, honoring
     limit and the ``before`` cursor (due_date < before)."""
     now = _utcnow()
@@ -434,7 +354,7 @@ async def test_get_feed_public_in_users_limit_before(clean_tasks, repo):
 # mark_as_completed
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_mark_as_completed(clean_tasks, repo):
+async def test_mark_as_completed(init_core, repo):
     """Sets status=COMPLETED, stamps a non-null tz-aware completed_date, persists."""
     task = await repo.create(
         make_task(status=TaskStatus.PENDING, title="to_complete")
@@ -466,7 +386,7 @@ async def test_mark_as_completed(clean_tasks, repo):
 # mark_overdue_tasks bulk mutation + modified_count
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_mark_overdue_tasks_modifies_matching(clean_tasks, repo):
+async def test_mark_overdue_tasks_modifies_matching(init_core, repo):
     """Past-due PENDING tasks flip to OVERDUE; returns modified_count == #flipped."""
     now = _utcnow()
     for i in range(3):
@@ -483,7 +403,7 @@ async def test_mark_overdue_tasks_modifies_matching(clean_tasks, repo):
 
 
 @pytest.mark.asyncio
-async def test_mark_overdue_tasks_ignores_non_pending_and_future(clean_tasks, repo):
+async def test_mark_overdue_tasks_ignores_non_pending_and_future(init_core, repo):
     """Future-due tasks and non-PENDING tasks are left untouched."""
     now = _utcnow()
     future = await repo.create(
@@ -508,7 +428,7 @@ async def test_mark_overdue_tasks_ignores_non_pending_and_future(clean_tasks, re
 
 
 @pytest.mark.asyncio
-async def test_mark_overdue_tasks_returns_zero_when_none(clean_tasks, repo):
+async def test_mark_overdue_tasks_returns_zero_when_none(init_core, repo):
     """No matching tasks -> returns 0, nothing mutated."""
     now = _utcnow()
     future = await repo.create(
@@ -522,7 +442,7 @@ async def test_mark_overdue_tasks_returns_zero_when_none(clean_tasks, repo):
 
 
 @pytest.mark.asyncio
-async def test_mark_overdue_tasks_scoped_to_user(clean_tasks, repo):
+async def test_mark_overdue_tasks_scoped_to_user(init_core, repo):
     """Another user's past-due PENDING tasks are NOT flipped."""
     now = _utcnow()
     mine = await repo.create(

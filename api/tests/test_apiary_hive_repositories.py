@@ -11,121 +11,28 @@ migration introduced: full CRUD round-trips, ``get_by_id`` -> None on a missing
 id, and the apiary<->hive relationship via ``Hive.get_by_apiary_id`` (equality
 filter + empty result).
 
-Infra note: there is no ``tests/conftest.py`` yet (the migration plan §4.1 adds
-one as separate P0 infra and will own env overrides, the Mongo skip guard and
-cleanup). Until it lands, this file is intentionally self-contained so it
-COLLECTS and RUNS cleanly on its own:
-
-  * Env overrides are set at the very top, BEFORE importing ``app`` /
-    ``assistive_core`` (their settings read os.environ at import time). We use
-    ``setdefault`` so a future conftest or CI env wins.
-  * A Mongo-reachability guard skips the whole module when no Mongo is reachable
-    (``mongomock-motor`` is NOT installed), matching the pattern in
-    tests/test_main.py and the plan's "skip the async suite when Mongo is
-    unreachable" approach.
-  * pytest-asyncio 0.24.0 is installed but UNCONFIGURED (no asyncio_mode=auto),
-    so every async test carries an explicit ``@pytest.mark.asyncio`` marker.
-
-When the shared conftest arrives, its session ``init_core`` fixture + per-test
-cleanup can replace the local fixtures here with no changes to the test bodies.
+Infra now lives in the shared ``tests/conftest.py`` (migration plan §4.1): it
+owns the env overrides, the Mongo skip guard, the per-test Beanie init across
+both DBs (``init_core``) and the before/after-each cleanup. This file just opts
+into that ``init_core`` fixture; the test bodies are unchanged.
 """
-import os
-
-# --- Env overrides: MUST happen before importing app/assistive_core. ---
-# assistive_core.settings.Settings reads env at import time; point the suite at
-# dedicated *_test databases and keep init_core out of its production fail-fast
-# path (placeholder JWT key). setdefault so a conftest / CI env that already set
-# these wins.
-os.environ.setdefault("MONGODB_DB", "beekeeper_test")
-os.environ.setdefault("IDENTITY_DB", "assistive_identity_test")
-os.environ.setdefault("ASSISTIVE_ENV", "test")
-os.environ.setdefault("ENV", "test")
-MONGODB_URI = os.environ.setdefault("MONGODB_URI", "mongodb://localhost:27017")
-
 import uuid
 from datetime import datetime, timezone
 
 import pytest
-import pytest_asyncio
 
-
-def _mongo_reachable(uri: str) -> bool:
-    """Return True if a Mongo at ``uri`` answers a ping quickly.
-
-    These repository tests hit a live Mongo (no mongomock-motor installed). When
-    none is reachable (e.g. DB-less CI) we skip the module rather than error, so
-    collection stays green.
-    """
-    try:
-        from pymongo import MongoClient
-    except Exception:
-        return False
-    try:
-        probe = MongoClient(uri, serverSelectionTimeoutMS=1000)
-        try:
-            probe.admin.command("ping")
-            return True
-        finally:
-            probe.close()
-    except Exception:
-        return False
-
-
-# Collection-time skip guard: if no Mongo, skip the entire module so the file
-# still imports/collects cleanly without a live DB.
-if not _mongo_reachable(MONGODB_URI):
-    pytest.skip(
-        f"No MongoDB reachable at {MONGODB_URI}; skipping repository suite "
-        "(mongomock-motor not installed).",
-        allow_module_level=True,
-    )
-
-# Imported only after the skip guard + env overrides so a DB-less collection
-# does not pay the import cost / side effects.
-from app.models import Apiary, ApiaryStatus, Hive, HiveStatus  # noqa: E402
-from app.models import DOMAIN_DOCUMENTS  # noqa: E402
-from app.feed_sources import FEED_SOURCES  # noqa: E402
-from app.repositories.apiary_repository import ApiaryRepository  # noqa: E402
-from app.repositories.hive_repository import HiveRepository  # noqa: E402
-from assistive_core import init_core, close_core, get_client  # noqa: E402
-from assistive_core.settings import settings  # noqa: E402
+# conftest.py owns the env overrides + Mongo skip guard, so they run before this
+# module's imports of app/assistive_core during collection.
+from app.models import Apiary, ApiaryStatus, Hive, HiveStatus
+from app.repositories.apiary_repository import ApiaryRepository
+from app.repositories.hive_repository import HiveRepository
 
 
 # --- Fixtures ------------------------------------------------------------------
-
-
-@pytest_asyncio.fixture
-async def initialized_db():
-    """Initialise Beanie exactly as app/main.py's lifespan does.
-
-    Function-scoped: pytest-asyncio 0.24 gives each test its own event loop and
-    Motor/Beanie bind their client to the running loop, so init_core must run on
-    the test's own loop (a module-scoped client raises "attached to a different
-    loop"). Tears down the shared motor client after each test (resetting
-    assistive_core's module-global _client).
-    """
-    await init_core(
-        vertical_documents=DOMAIN_DOCUMENTS,
-        feed_sources=FEED_SOURCES,
-    )
-    yield
-    await close_core()
-
-
-@pytest_asyncio.fixture(autouse=True)
-async def clean_collections(initialized_db):
-    """Drop the apiaries/hives collections before and after each test.
-
-    Keeps tests isolated from each other and from any seeded dev data. Dropping
-    (rather than deleting docs) is fine here; Beanie re-creates declared indexes
-    lazily and these tests don't assert on indexes.
-    """
-    db = get_client()[settings.MONGODB_DB]
-    await db["apiaries"].delete_many({})
-    await db["hives"].delete_many({})
-    yield
-    await db["apiaries"].delete_many({})
-    await db["hives"].delete_many({})
+# The shared conftest ``init_core`` fixture initialises Beanie like app/main.py's
+# lifespan and wipes all domain + identity collections before and after each
+# test, so the local ``initialized_db`` / autouse ``clean_collections`` fixtures
+# are gone. Tests depend on ``init_core`` directly (signature arg or usefixtures).
 
 
 @pytest.fixture
@@ -173,6 +80,7 @@ def make_hive(apiary_id: str, **overrides) -> Hive:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("init_core")
 async def test_apiary_crud(apiary_repo):
     """create -> get_by_id -> get_all (contains it) -> update -> delete -> None."""
     apiary = make_apiary(name="CRUD Apiary", location="Origin")
@@ -210,6 +118,7 @@ async def test_apiary_crud(apiary_repo):
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("init_core")
 async def test_apiary_get_by_id_missing_returns_none(apiary_repo):
     """Unknown apiary id resolves to None (not an error)."""
     missing = await apiary_repo.get_by_id(str(uuid.uuid4()))
@@ -220,6 +129,7 @@ async def test_apiary_get_by_id_missing_returns_none(apiary_repo):
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("init_core")
 async def test_hive_crud(apiary_repo, hive_repo):
     """Full Hive lifecycle: create -> get -> get_all -> update -> delete -> None."""
     apiary = await apiary_repo.create(make_apiary())
@@ -256,6 +166,7 @@ async def test_hive_crud(apiary_repo, hive_repo):
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("init_core")
 async def test_hive_get_by_id_missing_returns_none(hive_repo):
     """Unknown hive id resolves to None."""
     missing = await hive_repo.get_by_id(str(uuid.uuid4()))
@@ -263,6 +174,7 @@ async def test_hive_get_by_id_missing_returns_none(hive_repo):
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("init_core")
 async def test_hive_get_by_apiary_id_filters(apiary_repo, hive_repo):
     """get_by_apiary_id returns only the hives of the matching apiary."""
     apiary_a = await apiary_repo.create(make_apiary(name="Apiary A"))
@@ -284,6 +196,7 @@ async def test_hive_get_by_apiary_id_filters(apiary_repo, hive_repo):
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("init_core")
 async def test_hive_get_by_apiary_id_empty(apiary_repo, hive_repo):
     """An apiary id with no hives (and an unknown id) returns an empty list."""
     apiary = await apiary_repo.create(make_apiary())
@@ -296,6 +209,7 @@ async def test_hive_get_by_apiary_id_empty(apiary_repo, hive_repo):
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("init_core")
 async def test_hive_get_all(apiary_repo, hive_repo):
     """get_all returns every inserted hive regardless of apiary."""
     apiary_a = await apiary_repo.create(make_apiary(name="Apiary A"))
