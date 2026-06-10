@@ -3,7 +3,22 @@ from fastapi.testclient import TestClient
 from datetime import datetime
 from app.main import app
 
+from .conftest import requires_mongo
+
+pytestmark = requires_mongo
+
 client = TestClient(app)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _app_lifespan():
+    """Run the app lifespan (init_core + seed) for this module so DB-backed route
+    handlers hit a live, freshly-bound Beanie client on the TestClient's own loop.
+    Without it the module-level TestClient never triggers startup, so these tests
+    inherit Beanie bound to a closed client from a prior async (init_core-fixture)
+    test -> 'Event loop is closed'."""
+    with client:
+        yield
 
 
 def test_get_all_hives():
@@ -28,7 +43,7 @@ def test_get_hives_by_apiary():
         assert isinstance(data, list)
         # All hives should belong to the specified apiary
         for hive in data:
-            assert hive["apiary_id"] == apiary_id
+            assert hive["apiaryId"] == apiary_id
 
 
 def test_get_hive_by_id():
@@ -44,8 +59,8 @@ def test_get_hive_by_id():
         assert data["id"] == hive_id
         assert "name" in data
         assert "status" in data
-        assert "colony_strength" in data
-        assert "queen_status" in data
+        assert "colonyStrength" in data
+        assert "queenStatus" in data
 
 
 def test_create_hive():

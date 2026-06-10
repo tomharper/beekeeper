@@ -2,7 +2,22 @@ import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 
+from .conftest import requires_mongo
+
+pytestmark = requires_mongo
+
 client = TestClient(app)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _app_lifespan():
+    """Run the app lifespan (init_core + seed) for this module so DB-backed route
+    handlers hit a live, freshly-bound Beanie client on the TestClient's own loop.
+    Without it the module-level TestClient never triggers startup, so these tests
+    inherit Beanie bound to a closed client from a prior async (init_core-fixture)
+    test -> 'Event loop is closed'."""
+    with client:
+        yield
 
 
 def test_get_apiaries():
@@ -29,7 +44,7 @@ def test_get_apiary_by_id():
         assert data["id"] == apiary_id
         assert "name" in data
         assert "location" in data
-        assert "hive_count" in data
+        assert "hiveCount" in data
 
 
 def test_get_nonexistent_apiary():
