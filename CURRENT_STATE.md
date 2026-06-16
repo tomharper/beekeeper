@@ -21,7 +21,7 @@ beekeeper/
 
 FastAPI + async stack. Data on **MongoDB** via motor + Beanie (Pydantic ODM). Photo storage on **Bunny.net** CDN.
 
-The shared data plane is the **cinefiller MongoDB cluster** (per-app databases — `beekeeper` here) and the **`hyperlocal` Bunny zone** (per-app folder namespace). VRUsafety uses the same cluster/zone for its own services; no shared API service sits between them.
+The shared data plane is the **BigKreatorsCluster0 MongoDB cluster** (per-app databases — `beekeeper` here) and the **`hyperlocal` Bunny zone** (per-app folder namespace). VRUsafety uses the same cluster/zone for its own services; no shared API service sits between them.
 
 **Routers** (`api/app/routers/`):
 - `auth` — registration / login (JWT)

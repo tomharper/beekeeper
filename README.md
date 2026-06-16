@@ -54,7 +54,7 @@ beekeeper/
 
 ### Backend (`api/` + `assistive-core/`)
 - **FastAPI** + **Uvicorn** (ASGI)
-- **MongoDB** via **Motor** (async) + **Beanie** (ODM) — shared "cinefiller" cluster, per-vertical database + a shared identity DB for SSO
+- **MongoDB** via **Motor** (async) + **Beanie** (ODM) — shared "BigKreatorsCluster0" cluster, per-vertical database + a shared identity DB for SSO
 - **Pydantic v2** — validation / camelCase response aliasing
 - **python-jose** — JWT auth (shared SSO signing key)
 - **Anthropic Claude** — vision + chat
