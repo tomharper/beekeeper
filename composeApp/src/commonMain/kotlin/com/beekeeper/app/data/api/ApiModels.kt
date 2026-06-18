@@ -5,6 +5,14 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class CreateApiaryRequest(
+    val name: String,
+    val location: String,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+)
+
+@Serializable
 data class CreateTaskRequest(
     val title: String,
     val description: String? = null,

@@ -8,6 +8,11 @@ build/
 # Local machine config (SDK path, etc.) — must not be committed
 local.properties
 
+# Secrets / local environment — never commit (the .env.example templates ARE tracked)
+.env
+.env.local
+.env.*.local
+
 # Python caches / editable-install artifacts (incl. vendored assistive-core)
 __pycache__/
 *.egg-info/

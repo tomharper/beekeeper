@@ -13,6 +13,7 @@ import androidx.navigation.toRoute
 import com.beekeeper.app.navigation.Screen
 import com.beekeeper.app.ui.screens.advisor.AIAdvisorChatScreen
 import com.beekeeper.app.ui.screens.apiary.ApiaryListScreen
+import com.beekeeper.app.ui.screens.apiary.CreateApiaryScreen
 import com.beekeeper.app.ui.screens.dashboard.ApiaryDashboardScreen
 import com.beekeeper.app.ui.screens.hive.HiveDetailsScreen
 import com.beekeeper.app.ui.screens.tasks.TasksScreen
@@ -56,9 +57,11 @@ fun App() {
             ) {
                 composable<Screen.ApiaryList> {
                     ApiaryListScreen(
+                        viewModel = koinInject(),
                         onApiaryClick = { apiaryId ->
                             navController.navigate(Screen.ApiaryDashboard(apiaryId))
-                        }
+                        },
+                        onAddApiary = { navController.navigate(Screen.CreateApiary) }
                     )
                 }
 
@@ -115,6 +118,14 @@ fun App() {
             composable<Screen.Feed> {
                 FeedScreen(
                     viewModel = koinInject()
+                )
+            }
+
+            composable<Screen.CreateApiary> {
+                CreateApiaryScreen(
+                    viewModel = koinInject(),
+                    onBackClick = { navController.popBackStack() },
+                    onCreated = { navController.popBackStack() }
                 )
             }
 

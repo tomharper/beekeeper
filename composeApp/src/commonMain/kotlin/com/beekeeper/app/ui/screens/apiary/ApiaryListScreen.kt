@@ -11,22 +11,27 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.beekeeper.app.data.MockDataRepository
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.beekeeper.app.domain.model.Apiary
 import com.beekeeper.app.domain.model.ApiaryStatus
 import com.beekeeper.app.ui.theme.*
+import com.beekeeper.app.ui.viewmodel.ApiaryListViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ApiaryListScreen(
-    onApiaryClick: (String) -> Unit
+    viewModel: ApiaryListViewModel,
+    onApiaryClick: (String) -> Unit,
+    onAddApiary: () -> Unit = {}
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -47,7 +52,7 @@ fun ApiaryListScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = { viewModel.loadApiaries() }) {
                         Icon(
                             Icons.Default.Refresh,
                             contentDescription = "Refresh",
@@ -63,7 +68,7 @@ fun ApiaryListScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = {},
+                onClick = onAddApiary,
                 containerColor = BeekeeperGold,
                 contentColor = Color.Black
             ) {
@@ -89,7 +94,29 @@ fun ApiaryListScreen(
                 )
             }
 
-            items(MockDataRepository.apiaries) { apiary ->
+            if (uiState.isLoading && uiState.apiaries.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = BeekeeperGold)
+                    }
+                }
+            }
+
+            uiState.error?.let { err ->
+                item {
+                    Text(
+                        text = err,
+                        color = AlertRed,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+            }
+
+            items(uiState.apiaries) { apiary ->
                 ApiaryCard(
                     apiary = apiary,
                     onClick = { onApiaryClick(apiary.id) }

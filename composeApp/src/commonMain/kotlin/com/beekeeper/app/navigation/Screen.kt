@@ -35,4 +35,7 @@ sealed interface Screen {
 
     @Serializable
     data object Feed : Screen
+
+    @Serializable
+    data object CreateApiary : Screen
 }

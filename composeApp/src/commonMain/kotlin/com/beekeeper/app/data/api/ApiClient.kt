@@ -45,6 +45,14 @@ class ApiClient(private val baseUrl: String = ApiConfig.getBaseUrl()) {
         }.body()
     }
 
+    suspend fun createApiary(request: CreateApiaryRequest): Apiary {
+        return httpClient.post("$baseUrl/apiaries") {
+            addAuthHeader()
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+    }
+
     // Hives
     suspend fun getHives(apiaryId: String? = null): List<Hive> {
         return httpClient.get("$baseUrl/hives") {
