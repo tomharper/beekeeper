@@ -17,28 +17,32 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.beekeeper.app.data.MockDataRepository
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.beekeeper.app.domain.model.Alert
 import com.beekeeper.app.domain.model.AlertSeverity
 import com.beekeeper.app.domain.model.Hive
 import com.beekeeper.app.domain.model.HiveStatus
 import com.beekeeper.app.ui.theme.*
+import com.beekeeper.app.ui.viewmodel.ApiaryDashboardViewModel
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toInstant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ApiaryDashboardScreen(
+    viewModel: ApiaryDashboardViewModel,
     apiaryId: String,
     onHiveClick: (String) -> Unit,
     onBackClick: () -> Unit,
     onNavigateToAdvisor: () -> Unit
 ) {
-    val apiary = MockDataRepository.getApiaryById(apiaryId)
-    val hives = MockDataRepository.getHivesForApiary(apiaryId)
-    val alerts = MockDataRepository.getActiveAlerts()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(apiaryId) { viewModel.load(apiaryId) }
+    val apiary = uiState.apiary
+    val hives = uiState.hives
+    val alerts = uiState.alerts
 
-    var showAlert by remember { mutableStateOf(alerts.isNotEmpty()) }
+    var showAlert by remember(alerts) { mutableStateOf(alerts.isNotEmpty()) }
 
     Scaffold(
         topBar = {
