@@ -68,6 +68,7 @@ fun App() {
             composable<Screen.ApiaryDashboard> { backStackEntry ->
                 val args = backStackEntry.toRoute<Screen.ApiaryDashboard>()
                 ApiaryDashboardScreen(
+                    viewModel = koinInject(),
                     apiaryId = args.apiaryId,
                     onHiveClick = { hiveId ->
                         navController.navigate(Screen.HiveDetails(hiveId))
@@ -84,6 +85,7 @@ fun App() {
             composable<Screen.HiveDetails> { backStackEntry ->
                 val args = backStackEntry.toRoute<Screen.HiveDetails>()
                 HiveDetailsScreen(
+                    viewModel = koinInject(),
                     hiveId = args.hiveId,
                     onBackClick = {
                         navController.popBackStack()

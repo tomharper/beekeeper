@@ -10,9 +10,11 @@ import com.beekeeper.app.data.repository.FollowRepository
 import com.beekeeper.app.data.repository.InspectionRepository
 import com.beekeeper.app.data.repository.TaskRepository
 import com.beekeeper.app.ui.viewmodel.AIAdvisorViewModel
+import com.beekeeper.app.ui.viewmodel.ApiaryDashboardViewModel
 import com.beekeeper.app.ui.viewmodel.ApiaryListViewModel
 import com.beekeeper.app.ui.viewmodel.CreateApiaryViewModel
 import com.beekeeper.app.ui.viewmodel.FeedViewModel
+import com.beekeeper.app.ui.viewmodel.HiveDetailsViewModel
 import com.beekeeper.app.ui.viewmodel.InspectionsViewModel
 import com.beekeeper.app.ui.viewmodel.TasksViewModel
 import org.koin.dsl.module
@@ -40,4 +42,6 @@ val appModule = module {
     factory { FeedViewModel(get(), get()) }
     factory { CreateApiaryViewModel(get(), get()) }
     factory { ApiaryListViewModel(get()) }
+    factory { ApiaryDashboardViewModel(get(), get(), get()) }
+    factory { HiveDetailsViewModel(get(), get(), get()) }
 }

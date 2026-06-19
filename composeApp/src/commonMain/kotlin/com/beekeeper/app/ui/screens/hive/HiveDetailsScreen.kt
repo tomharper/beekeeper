@@ -16,31 +16,39 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.beekeeper.app.data.MockDataRepository
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.beekeeper.app.domain.model.*
 import com.beekeeper.app.ui.theme.*
+import com.beekeeper.app.ui.viewmodel.HiveDetailsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HiveDetailsScreen(
+    viewModel: HiveDetailsViewModel,
     hiveId: String,
     onBackClick: () -> Unit
 ) {
-    val hive = MockDataRepository.getHiveById(hiveId)
-    val recommendations = MockDataRepository.getRecommendationsForHive(hiveId)
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(hiveId) { viewModel.load(hiveId) }
     var selectedTab by remember { mutableStateOf(0) }
 
+    val hive = uiState.hive
     if (hive == null) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text("Hive not found", color = TextPrimary)
+            if (uiState.isLoading) {
+                CircularProgressIndicator(color = BeekeeperGold)
+            } else {
+                Text("Hive not found", color = TextPrimary)
+            }
         }
         return
     }
 
-    val apiary = MockDataRepository.getApiaryById(hive.apiaryId)
+    val apiary = uiState.apiary
+    val recommendations = uiState.recommendations
 
     Scaffold(
         topBar = {
